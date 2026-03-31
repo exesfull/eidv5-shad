@@ -101,15 +101,15 @@ export default function LoginPage() {
             {/* ===================== */}
             
             {step === "login" && (
-                <div className="space-y-6">
+                <div className="space-y-5">
 
                     {/* TOGGLE */}
-                    <div className="mx-12 flex rounded-lg border overflow-hidden">
+                    <div className="mx-20 flex rounded-lg border overflow-hidden">
                         <button
                             onClick={() => setMode("email")}
                             className={`flex-1 h-8 ${
                             mode === "email"
-                                ? "bg-primary text-white"
+                                ? "bg-background text-primary font-bold"
                                 : "bg-background"
                             }`}
                         >
@@ -120,11 +120,11 @@ export default function LoginPage() {
                             onClick={() => setMode("phone")}
                             className={`flex-1 h-8 ${
                             mode === "phone"
-                                ? "bg-primary text-white"
+                                ? "bg-background  text-primary font-bold"
                                 : "bg-background"
                             }`}
                         >
-                            Phone
+                            Телефон
                         </button>
                     </div>
 
@@ -245,7 +245,7 @@ export default function LoginPage() {
 
                     {/* REGISTER */}
                     <div className="text-center">
-                        <button className="text-primary text-sm">
+                        <button className="font-bold text-primary">
                             Создать аккаунт
                         </button>
                     </div>
