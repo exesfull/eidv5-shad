@@ -31,7 +31,7 @@ jobs:
 
       # 4. Деплой через SSH с очисткой папки
       - name: Deploy to server via SSH
-        uses: easingthemes/ssh-deploy@v5.1.0 [[1]]
+        uses: easingthemes/ssh-deploy@v5.1.0
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
