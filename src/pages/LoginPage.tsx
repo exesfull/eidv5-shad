@@ -8,10 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function LoginPage() {
 
   const [step, setStep] = useState<"login" | "password">("login");
+  const [isQROpen, setIsQROpen] = useState(false);
 
   const [mode, setMode] = useState<"email" | "phone">("email");
   const [login, setLogin] = useState("");
@@ -170,64 +176,85 @@ export default function LoginPage() {
                     </div>
 
                     {/* 🔥 ДВЕ КОЛОНКИ */}
-                    <div className="grid grid-cols-12 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
 
-                        {/* LEFT (8) */}
-                        <div className="col-span-8 space-y-2">
+        {/* LEFT: Кнопки */}
+        <div className="md:col-span-8 col-span-12 space-y-2">
 
-                            <Button variant="outline" className="w-full h-10 mt-1">
-                                Войти по лицу или отпечатку
-                            </Button>
+          <Button variant="outline" className="w-full h-10 mt-1">
+            Войти по лицу или отпечатку
+          </Button>
 
-                            {/* SOCIAL */}
-                            <div className="flex justify-between px-0 mt-0">
-                                <Button variant="outline" className="h-12">
-                                    <img
-                                        height="30"
-                                        width="30"
-                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/ya.svg"
-                                        alt="im"
-                                    />
-                                </Button>
-                                <Button variant="outline" className="h-12">
-                                    <img
-                                        height="30"
-                                        width="30"
-                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/vk.svg"
-                                        alt="im"
-                                    />
-                                </Button>
-                                <Button variant="outline" className="h-12">
-                                <img
-                                    height="30"
-                                        width="30"
-                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/google.svg"
-                                        alt="im"
-                                    />
-                                </Button>
-                                <Button variant="outline" className="h-12">
-                                    <img
-                                        height="30"
-                                        width="30"
-                                        src="https://www.svgrepo.com/show/343522/telegram-communication-chat-interaction-network-connection.svg"
-                                        alt="im"
-                                    />
-                                </Button>
-                            </div>
-                        </div>
-                    
-                        {/* RIGHT (QR) */}
-                        <div className="col-span-4 flex flex-col items-center justify-between">
+          {/* SOCIAL */}
+          <div className="flex justify-between px-0 mt-0">
+            <Button variant="outline" className="h-12">
+              <img
+                height="30"
+                width="30"
+                src="https://system.exesfull.com/img/connect/fav_icons/eid/ya.svg"
+                alt="im"
+              />
+            </Button>
+            <Button variant="outline" className="h-12">
+              <img
+                height="30"
+                width="30"
+                src="https://system.exesfull.com/img/connect/fav_icons/eid/vk.svg"
+                alt="im"
+              />
+            </Button>
+            <Button variant="outline" className="h-12">
+              <img
+                height="30"
+                width="30"
+                src="https://system.exesfull.com/img/connect/fav_icons/eid/google.svg"
+                alt="im"
+              />
+            </Button>
+            <Button variant="outline" className="h-12">
+              <img
+                height="30"
+                width="30"
+                src="https://www.svgrepo.com/show/343522/telegram-communication-chat-interaction-network-connection.svg"
+                alt="im"
+              />
+            </Button>
+          </div>
 
-                            <div className="bg-white p-1 rounded-xl">
-                            <img
-                                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
-                                className="rounded-md"
-                            />
-                            </div>
+          {/* Кнопка "Показать QR-code" — только на мобильных */}
+          <div className="md:hidden mt-2">
+            <Dialog open={isQROpen} onOpenChange={setIsQROpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full h-10 mt-1">
+                  Показать QR-code
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[280px] p-4">
+                <div className="bg-white p-1 rounded-xl flex justify-center">
+                  <img
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
+                    className="rounded-md"
+                    alt="QR"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-                        </div>
-                    </div>
+        </div>
+    
+        {/* RIGHT: QR — только на десктопе */}
+        <div className="md:col-span-4 col-span-12 hidden md:flex flex-col items-center justify-between">
+          <div className="bg-white p-1 rounded-xl">
+            <img
+              src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
+              className="rounded-md"
+              alt="QR"
+            />
+          </div>
+        </div>
+
+      </div>
                    
 
                     {/* ROW 2 */}
