@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-
+import { useNavigate } from "react-router-dom"; // 🔥 импорт навигации
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
+import { AvatarWithSkeleton } from "@/components/ui/AvatarWithSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 
 export default function LoginPage() {
+ const navigate = useNavigate(); // 🔥 хук навигации
 
   const [step, setStep] = useState<"login" | "password">("login");
   const [isQROpen, setIsQROpen] = useState(false);
@@ -27,6 +30,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const [user, setUser] = useState<any>(null);
+
+  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [socialImagesLoaded, setSocialImagesLoaded] = useState({
+    ya: false,
+    vk: false,
+    google: false,
+    telegram: false,
+  });
+  const [qrLoaded, setQrLoaded] = useState(false);
 
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -80,12 +92,17 @@ export default function LoginPage() {
 
         {/* LOGO */}
         <div className="flex flex-col items-center gap-6">
-         
+
             <div className="flex items-center font-semibold text-xl">
+                {!logoLoaded && (
+                  <Skeleton className="h-8 w-8 mr-1 rounded" />
+                )}
                 <img
                     className="mr-1 h-8 w-8"
                     src="https://exesfull.com/img/10.svg"
                     alt=""
+                    onLoad={() => setLogoLoaded(true)}
+                    style={{ display: logoLoaded ? 'block' : 'none' }}
                 />
                 Exesfull-ID
             </div>
@@ -115,8 +132,8 @@ export default function LoginPage() {
                             onClick={() => setMode("email")}
                             className={`flex-1 h-8 ${
                             mode === "email"
-                                ? "bg-background text-primary font-bold"
-                                : "bg-background"
+                                ? "bg-border text-primary font-bold"
+                                : "bg-border"
                             }`}
                         >
                             Email
@@ -126,8 +143,8 @@ export default function LoginPage() {
                             onClick={() => setMode("phone")}
                             className={`flex-1 h-8 ${
                             mode === "phone"
-                                ? "bg-background  text-primary font-bold"
-                                : "bg-background"
+                                ? "bg-border  text-primary font-bold"
+                                : "bg-border"
                             }`}
                         >
                             Телефон
@@ -172,7 +189,7 @@ export default function LoginPage() {
                         или войдите с помощью
                     </span>
                     <Separator className="flex-1" />
-                    </div>
+                    </div> 
                     </div>
 
                     {/* 🔥 ДВЕ КОЛОНКИ */}
@@ -188,35 +205,55 @@ export default function LoginPage() {
           {/* SOCIAL */}
           <div className="flex justify-between px-0 mt-0">
             <Button variant="outline" className="h-12">
+              {!socialImagesLoaded.ya && (
+                <Skeleton className="h-[30px] w-[30px] rounded" />
+              )}
               <img
                 height="30"
                 width="30"
                 src="https://system.exesfull.com/img/connect/fav_icons/eid/ya.svg"
                 alt="im"
+                onLoad={() => setSocialImagesLoaded(prev => ({ ...prev, ya: true }))}
+                style={{ display: socialImagesLoaded.ya ? 'block' : 'none' }}
               />
             </Button>
             <Button variant="outline" className="h-12">
+              {!socialImagesLoaded.vk && (
+                <Skeleton className="h-[30px] w-[30px] rounded" />
+              )}
               <img
                 height="30"
                 width="30"
                 src="https://system.exesfull.com/img/connect/fav_icons/eid/vk.svg"
                 alt="im"
+                onLoad={() => setSocialImagesLoaded(prev => ({ ...prev, vk: true }))}
+                style={{ display: socialImagesLoaded.vk ? 'block' : 'none' }}
               />
             </Button>
             <Button variant="outline" className="h-12">
+              {!socialImagesLoaded.google && (
+                <Skeleton className="h-[30px] w-[30px] rounded" />
+              )}
               <img
                 height="30"
                 width="30"
                 src="https://system.exesfull.com/img/connect/fav_icons/eid/google.svg"
                 alt="im"
+                onLoad={() => setSocialImagesLoaded(prev => ({ ...prev, google: true }))}
+                style={{ display: socialImagesLoaded.google ? 'block' : 'none' }}
               />
             </Button>
             <Button variant="outline" className="h-12">
+              {!socialImagesLoaded.telegram && (
+                <Skeleton className="h-[30px] w-[30px] rounded" />
+              )}
               <img
                 height="30"
                 width="30"
                 src="https://www.svgrepo.com/show/343522/telegram-communication-chat-interaction-network-connection.svg"
                 alt="im"
+                onLoad={() => setSocialImagesLoaded(prev => ({ ...prev, telegram: true }))}
+                style={{ display: socialImagesLoaded.telegram ? 'block' : 'none' }}
               />
             </Button>
           </div>
@@ -231,10 +268,15 @@ export default function LoginPage() {
               </DialogTrigger>
               <DialogContent className="w-[280px] p-4">
                 <div className="bg-white p-1 rounded-xl flex justify-center">
+                  {!qrLoaded && (
+                    <Skeleton className="h-[120px] w-[120px] rounded-md" />
+                  )}
                   <img
                     src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
                     className="rounded-md"
                     alt="QR"
+                    onLoad={() => setQrLoaded(true)}
+                    style={{ display: qrLoaded ? 'block' : 'none' }}
                   />
                 </div>
               </DialogContent>
@@ -242,14 +284,19 @@ export default function LoginPage() {
           </div>
 
         </div>
-    
+
         {/* RIGHT: QR — только на десктопе */}
         <div className="md:col-span-4 col-span-12 hidden md:flex flex-col items-center justify-between">
           <div className="bg-white p-1 rounded-xl">
+            {!qrLoaded && (
+              <Skeleton className="h-[120px] w-[120px] rounded-md" />
+            )}
             <img
               src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
               className="rounded-md"
               alt="QR"
+              onLoad={() => setQrLoaded(true)}
+              style={{ display: qrLoaded ? 'block' : 'none' }}
             />
           </div>
         </div>
@@ -272,7 +319,10 @@ export default function LoginPage() {
 
                     {/* REGISTER */}
                     <div className="text-center">
-                        <button className="font-bold text-primary">
+                        <button
+                            className="font-bold text-primary"
+                            onClick={() => navigate('/create')}
+                        >
                             Создать аккаунт
                         </button>
                     </div>
@@ -287,13 +337,16 @@ export default function LoginPage() {
               <>
                 {/* AVATAR */}
                 <div className="flex justify-center">
-                  <div className="w-30 h-30 rounded-full overflow-hidden bg-muted">
-                    {user?.imgUrl ? (
-                      <img src={user.imgUrl} className="w-full h-full object-cover" />
-                    ) : (
-                      <svg viewBox="0 0 300 150" />
-                    )}
-                  </div>
+                    <AvatarWithSkeleton 
+                        src={user?.imgUrl} 
+                        alt={user?.name}
+                        size="xl" // ваш размер w-30 h-30
+                        fallback={
+                        <span className="text-lg font-medium text-muted-foreground">
+                            {user?.name?.[0]?.toUpperCase()}
+                        </span>
+                        }
+                    />
                 </div>
 
                 {/* NAME */}
@@ -337,14 +390,18 @@ export default function LoginPage() {
                 {/* BACK */}
                 <div className="flex gap-2">
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     className="flex-1 h-10"
                     onClick={() => setStep("login")}
                   >
                     ← Назад
                   </Button>
 
-                  <Button variant="ghost" className="flex-1 h-10">
+                    <Button 
+                        onClick={() => navigate('/forgotPassword')} 
+                        variant="ghost" 
+                        className="flex-1 h-10"
+                    >
                     Забыли пароль?
                   </Button>
                 </div>
