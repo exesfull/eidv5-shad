@@ -48,7 +48,39 @@ export default function LoginPage() {
     if (step === "password") passwordRef.current?.focus();
   }, [step]);
 
-  const isLoginValid = login.length > 0;
+  // Phone mask formatting
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    
+    if (digits.startsWith("7")) {
+      const rest = digits.slice(1);
+      if (rest.length === 0) return "+7";
+      if (rest.length <= 3) return `+7(${rest}`;
+      if (rest.length <= 6) return `+7(${rest.slice(0, 3)}) ${rest.slice(3)}`;
+      if (rest.length <= 8) return `+7(${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6)}`;
+      return `+7(${rest.slice(0, 3)}) ${rest.slice(3, 6)}-${rest.slice(6, 8)}-${rest.slice(8, 10)}`;
+    }
+    return "+7";
+  };
+
+  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (mode === "phone") {
+      const formatted = formatPhone(e.target.value);
+      setLogin(formatted);
+    } else {
+      setLogin(e.target.value);
+    }
+    setError("");
+  };
+
+  const handleModeChange = (newMode: "email" | "phone") => {
+    setMode(newMode);
+    setLogin("");
+    setError("");
+    setTimeout(() => loginRef.current?.focus(), 0);
+  };
+
+  const isLoginValid = mode === "phone" ? login.length >= 16 : login.length > 0;
   const isPasswordValid = password.length > 0;
 
   // 🔥 API CALL
@@ -127,24 +159,24 @@ export default function LoginPage() {
                 <div className="space-y-5">
 
                     {/* TOGGLE */}
-                    <div className="mx-20 flex rounded-lg border overflow-hidden">
+                    <div className="mx-20 flex rounded-lg border border-input overflow-hidden">
                         <button
-                            onClick={() => setMode("email")}
-                            className={`flex-1 h-8 ${
+                            onClick={() => handleModeChange("email")}
+                            className={`flex-1 h-8 text-sm font-medium transition-colors ${
                             mode === "email"
-                                ? "bg-border text-primary font-bold"
-                                : "bg-border"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                             }`}
                         >
                             Email
                         </button>
 
                         <button
-                            onClick={() => setMode("phone")}
-                            className={`flex-1 h-8 ${
+                            onClick={() => handleModeChange("phone")}
+                            className={`flex-1 h-8 text-sm font-medium transition-colors border-l border-input ${
                             mode === "phone"
-                                ? "bg-border  text-primary font-bold"
-                                : "bg-border"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
                             }`}
                         >
                             Телефон
@@ -155,12 +187,9 @@ export default function LoginPage() {
                     <Input
                     className="h-10"
                     ref={loginRef}
-                    placeholder="Email or login"
+                    placeholder={mode === "phone" ? "+7 (___) ___-__-__" : "Email or login"}
                     value={login}
-                    onChange={(e) => {
-                        setLogin(e.target.value);
-                        setError("");
-                    }}
+                    onChange={handleLoginChange}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") handleCheckUser();
                     }}
