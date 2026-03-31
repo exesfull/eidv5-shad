@@ -1,0 +1,53 @@
+name: Deploy Vite App via SSH
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Позволяет запустить деплой вручную
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      # 1. Checkout кода
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Установка Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Установка зависимостей и сборка
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite project
+        run: npm run build
+        env:
+          # Если нужны переменные окружения для сборки
+          # VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      # 4. Деплой через SSH с очисткой папки
+      - name: Deploy to server via SSH
+        uses: easingthemes/ssh-deploy@v5.1.0 [[1]]
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USER }}
+          REMOTE_PORT: '22'
+          SOURCE: 'dist/'
+          TARGET: '/var/www/exesfull.com/id/assets/oauth/eidv5-shad/'
+          # Очистка папки перед деплоем + строгие флаги rsync
+          ARGS: '-rlgoDzvc -i --delete-before'
+          SCRIPT_BEFORE: |
+            echo "🧹 Очищаем целевую папку..."
+            rm -rf /var/www/exesfull.com/id/assets/oauth/eidv5-shad/*
+            mkdir -p /var/www/exesfull.com/id/assets/oauth/eidv5-shad/
+          SCRIPT_AFTER: |
+            echo "✅ Деплой завершён. Проверка файлов:"
+            ls -la /var/www/exesfull.com/id/assets/oauth/eidv5-shad/
