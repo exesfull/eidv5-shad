@@ -28,9 +28,6 @@ jobs:
 
       - name: Build Vite project
         run: npm run build
-        env:
-          # Если нужны переменные окружения для сборки
-          # VITE_API_URL: ${{ vars.VITE_API_URL }}
 
       # 4. Деплой через SSH с очисткой папки
       - name: Deploy to server via SSH
