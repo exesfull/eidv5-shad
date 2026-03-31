@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
-import { AvatarWithSkeleton } from "@/components/ui/AvatarWithSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import {
   Dialog,
   DialogContent,
@@ -337,10 +337,10 @@ export default function LoginPage() {
               <>
                 {/* AVATAR */}
                 <div className="flex justify-center">
-                    <AvatarWithSkeleton 
-                        src={user?.imgUrl} 
+                    <AvatarWithLoader
+                        src={user?.imgUrl}
                         alt={user?.name}
-                        size="xl" // ваш размер w-30 h-30
+                        size="xl"
                         fallback={
                         <span className="text-lg font-medium text-muted-foreground">
                             {user?.name?.[0]?.toUpperCase()}

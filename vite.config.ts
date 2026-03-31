@@ -7,7 +7,7 @@ import { defineConfig } from "vite"
 export default defineConfig(({ mode }) => ({
   //base: 'https://id.exesfull.com/assets/oauth/eidv5-shad/',
   base: mode === 'production' 
-    ? '/assets/oauth/eidv5-shad/' 
+    ? 'https://id.exesfull.com/assets/oauth/eidv5-shad/' 
     : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
