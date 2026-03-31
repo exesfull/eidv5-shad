@@ -7,12 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { motion, AnimatePresence } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
-    const ENABLE_ANIMATIONS = true;
-    const ENABLE_PHONE_MASK = false;
 
   const [step, setStep] = useState<"login" | "password">("login");
 
