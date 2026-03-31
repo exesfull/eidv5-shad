@@ -1,0 +1,341 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import axios from "axios";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { motion, AnimatePresence } from "framer-motion";
+import { Separator } from "@/components/ui/separator";
+
+export default function LoginPage() {
+    const ENABLE_ANIMATIONS = true;
+    const ENABLE_PHONE_MASK = false;
+
+  const [step, setStep] = useState<"login" | "password">("login");
+
+  const [mode, setMode] = useState<"email" | "phone">("email");
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [user, setUser] = useState<any>(null);
+
+  const loginRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (step === "login") loginRef.current?.focus();
+    if (step === "password") passwordRef.current?.focus();
+  }, [step]);
+
+  const isLoginValid = login.length > 0;
+  const isPasswordValid = password.length > 0;
+
+  // 🔥 API CALL
+  const handleCheckUser = async () => {
+    if (!isLoginValid) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("login", login);
+
+      const res = await axios.post(
+        "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkEmailOrLogin",
+        formData
+      );
+
+      if (res.data.status) {
+        setUser(res.data.user);
+        setStep("password");
+      } else {
+        setError("Мы не нашли такого пользователя");
+      }
+    } catch (e) {
+      setError("Ошибка соединения");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+
+      {/* THEME */}
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-sm space-y-6">
+
+        {/* LOGO */}
+        <div className="flex flex-col items-center gap-6">
+         
+            <div className="flex items-center font-semibold text-xl">
+                <img
+                    className="mr-1 h-8 w-8"
+                    src="https://exesfull.com/img/10.svg"
+                    alt=""
+                />
+                Exesfull-ID
+            </div>
+        </div>
+
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>Вход</CardTitle>
+            <p className="text-sm text-muted-foreground">
+                Чтобы продолжить, вам нужно войти 
+                в аккаунт или создать новый.
+            </p>
+          </CardHeader>
+
+          <CardContent className="space-y-5">
+
+            {/* ===================== */}
+            {/* STEP 1 */}
+            {/* ===================== */}
+            
+            {step === "login" && (
+                <div className="space-y-6">
+
+                    {/* TOGGLE */}
+                    <div className="mx-12 flex rounded-lg border overflow-hidden">
+                        <button
+                            onClick={() => setMode("email")}
+                            className={`flex-1 h-8 ${
+                            mode === "email"
+                                ? "bg-primary text-white"
+                                : "bg-background"
+                            }`}
+                        >
+                            Email
+                        </button>
+
+                        <button
+                            onClick={() => setMode("phone")}
+                            className={`flex-1 h-8 ${
+                            mode === "phone"
+                                ? "bg-primary text-white"
+                                : "bg-background"
+                            }`}
+                        >
+                            Phone
+                        </button>
+                    </div>
+
+                    {/* INPUT */}
+                    <Input
+                    className="h-10"
+                    ref={loginRef}
+                    placeholder="Email or login"
+                    value={login}
+                    onChange={(e) => {
+                        setLogin(e.target.value);
+                        setError("");
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCheckUser();
+                    }}
+                    />
+
+                    {/* BUTTON */}
+                    {error ? (
+                    <div className="text-red-500 text-sm text-center">
+                        {error}
+                    </div>
+                    ) : (
+                    <Button
+                        disabled={!isLoginValid || loading}
+                        onClick={handleCheckUser}
+                        className="w-full h-11"
+                    >
+                        {loading ? "Уже ищем вас..." : "Продолжить →"}
+                    </Button>
+                    )}
+
+                    {/* DIVIDER */}
+                    <div className="relative">
+                    <div className="flex items-center gap-2">
+                    <Separator className="flex-1" />
+                    <span className="text-xs text-muted-foreground">
+                        или войдите с помощью
+                    </span>
+                    <Separator className="flex-1" />
+                    </div>
+                    </div>
+
+                    {/* 🔥 ДВЕ КОЛОНКИ */}
+                    <div className="grid grid-cols-12 gap-4">
+
+                        {/* LEFT (8) */}
+                        <div className="col-span-8 space-y-2">
+
+                            <Button variant="outline" className="w-full h-10 mt-1">
+                                Войти по лицу или отпечатку
+                            </Button>
+
+                            {/* SOCIAL */}
+                            <div className="flex justify-between px-0 mt-0">
+                                <Button variant="outline" className="h-12">
+                                    <img
+                                        height="30"
+                                        width="30"
+                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/ya.svg"
+                                        alt="im"
+                                    />
+                                </Button>
+                                <Button variant="outline" className="h-12">
+                                    <img
+                                        height="30"
+                                        width="30"
+                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/vk.svg"
+                                        alt="im"
+                                    />
+                                </Button>
+                                <Button variant="outline" className="h-12">
+                                <img
+                                    height="30"
+                                        width="30"
+                                        src="https://system.exesfull.com/img/connect/fav_icons/eid/google.svg"
+                                        alt="im"
+                                    />
+                                </Button>
+                                <Button variant="outline" className="h-12">
+                                    <img
+                                        height="30"
+                                        width="30"
+                                        src="https://www.svgrepo.com/show/343522/telegram-communication-chat-interaction-network-connection.svg"
+                                        alt="im"
+                                    />
+                                </Button>
+                            </div>
+                        </div>
+                    
+                        {/* RIGHT (QR) */}
+                        <div className="col-span-4 flex flex-col items-center justify-between">
+
+                            <div className="bg-white p-1 rounded-xl">
+                            <img
+                                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
+                                className="rounded-md"
+                            />
+                            </div>
+
+                        </div>
+                    </div>
+                   
+
+                    {/* ROW 2 */}
+                    {/* <div className="grid grid-cols-12 gap-4">
+
+                    <Button className="col-span-8 h-11" variant="outline">
+                        Вход в корпоративную сеть / SSO
+                    </Button>
+
+                    <Button className="col-span-4 h-11" variant="outline">
+                        Еще
+                    </Button>
+                    </div> */}
+                    
+
+                    {/* REGISTER */}
+                    <div className="text-center">
+                        <button className="text-primary text-sm">
+                            Создать аккаунт
+                        </button>
+                    </div>
+
+                </div>
+                )}
+
+            {/* ===================== */}
+            {/* STEP 2 */}
+            {/* ===================== */}
+            {step === "password" && (
+              <>
+                {/* AVATAR */}
+                <div className="flex justify-center">
+                  <div className="w-30 h-30 rounded-full overflow-hidden bg-muted">
+                    {user?.imgUrl ? (
+                      <img src={user.imgUrl} className="w-full h-full object-cover" />
+                    ) : (
+                      <svg viewBox="0 0 300 150" />
+                    )}
+                  </div>
+                </div>
+
+                {/* NAME */}
+                <div className="text-center font-medium">
+                  {user?.name}
+                </div>
+
+                {/* PASSWORD */}
+                <Input
+                  ref={passwordRef}
+                  type="password"
+                  placeholder="Пароль"
+                  className="h-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && isPasswordValid) {
+                      console.log("LOGIN");
+                    }
+                  }}
+                />
+
+                {/* BUTTON */}
+                <Button
+                  disabled={!isPasswordValid}
+                  className="w-full h-10"
+                >
+                  Продолжить →
+                </Button>
+
+                {/* EXTRA */}
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 h-10">
+                    PUSH
+                  </Button>
+                  <Button variant="outline" className="flex-1 h-10">
+                    Другие способы
+                  </Button>
+                </div>
+
+                {/* BACK */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="flex-1 h-10"
+                    onClick={() => setStep("login")}
+                  >
+                    ← Назад
+                  </Button>
+
+                  <Button variant="ghost" className="flex-1 h-10">
+                    Забыли пароль?
+                  </Button>
+                </div>
+              </>
+            )}
+
+          </CardContent>
+        </Card>
+
+        {/* FOOTER */}
+        <p className="text-xs text-center text-muted-foreground">
+          By clicking continue, you agree to Terms & Privacy Policy
+        </p>
+
+      </div>
+    </div>
+  );
+}
