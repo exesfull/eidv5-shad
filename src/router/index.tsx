@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import LoginPage from '@/pages/LoginPage'
 import PasswordForgotPage from '@/pages/PasswordForgotPage'
 import CreateAccountPage from '@/pages/CreateAccountPage'
+import NotFoundPage from '@/pages/NotFoundPage'
 
 export const router = createBrowserRouter([
   {
@@ -16,6 +17,10 @@ export const router = createBrowserRouter([
   {
     path: '/forgotPassword',
     element: <PasswordForgotPage />,
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
   // добавьте другие маршруты по необходимости
 ], {

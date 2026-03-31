@@ -55,10 +55,7 @@ const checkEmailExists = async (email: string): Promise<{ exists: boolean }> => 
 
 export default function CreateAccountPage() {
   const navigate = useNavigate();
-  
-  // Theme state
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
-  
+
   // Step state: 'country' | 'phone' | 'personal' | 'email' | 'password' | 'consent'
   const [step, setStep] = useState<"country" | "phone" | "personal" | "email" | "password" | "consent">("country");
   
@@ -287,37 +284,8 @@ export default function CreateAccountPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
-      {/* THEME SWITCHER */}
-      <div className="absolute right-6 top-6 flex items-center gap-2">
-        <div className="flex rounded-lg border overflow-hidden bg-background">
-          <button
-            onClick={() => setTheme("light")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors",
-              theme === "light" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            ☀️
-          </button>
-          <button
-            onClick={() => setTheme("system")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors border-l border-r",
-              theme === "system" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            💻
-          </button>
-          <button
-            onClick={() => setTheme("dark")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors",
-              theme === "dark" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            🌙
-          </button>
-        </div>
+      {/* THEME */}
+      <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
 
