@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom"; // 🔥 импорт навигации
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,13 @@ import {
   Dialog,
   DialogContent,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
- const navigate = useNavigate(); // 🔥 хук навигации
+  const navigate = useNavigate();
 
-  const [step, setStep] = useState<"login" | "password">("login");
+  const [step, setStep] = useState<"login" | "password" | "call">("login");
   const [isQROpen, setIsQROpen] = useState(false);
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -40,6 +41,10 @@ export default function LoginPage() {
   });
   const [qrLoaded, setQrLoaded] = useState(false);
 
+  // Call code state
+  const [callCode, setCallCode] = useState(["", "", "", ""]);
+  const [callMade, setCallMade] = useState(false);
+
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +56,7 @@ export default function LoginPage() {
   // Phone mask formatting
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, "");
-    
+
     if (digits.startsWith("7")) {
       const rest = digits.slice(1);
       if (rest.length === 0) return "+7";
@@ -83,7 +88,7 @@ export default function LoginPage() {
   const isLoginValid = mode === "phone" ? login.length >= 16 : login.length > 0;
   const isPasswordValid = password.length > 0;
 
-  // 🔥 API CALL
+  // 🔥 API CALL - Check user by email/login or phone
   const handleCheckUser = async () => {
     if (!isLoginValid) return;
 
@@ -94,14 +99,21 @@ export default function LoginPage() {
       const formData = new FormData();
       formData.append("login", login);
 
-      const res = await axios.post(
-        "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkEmailOrLogin",
-        formData
-      );
+      // Use different endpoints based on mode
+      const endpoint = mode === "phone"
+        ? "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkPhone"
+        : "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkEmailOrLogin";
+
+      const res = await axios.post(endpoint, formData);
 
       if (res.data.status) {
         setUser(res.data.user);
-        setStep("password");
+        // If phone mode, go to call step; if email mode, go to password step
+        if (mode === "phone") {
+          setStep("call");
+        } else {
+          setStep("password");
+        }
       } else {
         setError("Мы не нашли такого пользователя");
       }
@@ -110,6 +122,46 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMakeCall = () => {
+    setCallMade(true);
+    // TODO: Implement real call logic later
+    console.log("Making call to:", login);
+  };
+
+  const handleCallCodeChange = (index: number, value: string) => {
+    if (value.length > 1) return;
+
+    const newCode = [...callCode];
+    newCode[index] = value;
+    setCallCode(newCode);
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      const nextInput = document.getElementById(`call-code-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleCallCodeSubmit = () => {
+    const enteredCode = callCode.join("");
+    // TODO: Verify call code with backend
+    console.log("Verifying call code:", enteredCode);
+    // TODO: On success, navigate or set logged in state
+  };
+
+  const handleBackToPassword = () => {
+    setStep("password");
+    setCallMade(false);
+    setCallCode(["", "", "", ""]);
+  };
+
+  const handleBackToLogin = () => {
+    setStep("login");
+    setCallMade(false);
+    setCallCode(["", "", "", ""]);
+    setPassword("");
   };
 
   return (
@@ -144,7 +196,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle>Вход</CardTitle>
             <p className="text-sm text-muted-foreground">
-                Чтобы продолжить, вам нужно войти 
+                Чтобы продолжить, вам нужно войти
                 в аккаунт или создать новый.
             </p>
           </CardHeader>
@@ -152,9 +204,9 @@ export default function LoginPage() {
           <CardContent className="space-y-5">
 
             {/* ===================== */}
-            {/* STEP 1 */}
+            {/* STEP 1: Login */}
             {/* ===================== */}
-            
+
             {step === "login" && (
                 <div className="space-y-5">
 
@@ -184,16 +236,21 @@ export default function LoginPage() {
                     </div>
 
                     {/* INPUT */}
-                    <Input
-                    className="h-10"
-                    ref={loginRef}
-                    placeholder={mode === "phone" ? "+7 (___) ___-__-__" : "Email or login"}
-                    value={login}
-                    onChange={handleLoginChange}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") handleCheckUser();
-                    }}
-                    />
+                    <div className={cn(mode === "phone" && "flex justify-center")}>
+                      <Input
+                        className={cn(
+                          "h-12 text-base",
+                          mode === "phone" && "max-w-[280px] font-mono"
+                        )}
+                        ref={loginRef}
+                        placeholder={mode === "phone" ? "+7 (___) ___-__-__" : "Email or login"}
+                        value={login}
+                        onChange={handleLoginChange}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") handleCheckUser();
+                        }}
+                      />
+                    </div>
 
                     {/* BUTTON */}
                     {error ? (
@@ -218,7 +275,7 @@ export default function LoginPage() {
                         или войдите с помощью
                     </span>
                     <Separator className="flex-1" />
-                    </div> 
+                    </div>
                     </div>
 
                     {/* 🔥 ДВЕ КОЛОНКИ */}
@@ -227,7 +284,11 @@ export default function LoginPage() {
         {/* LEFT: Кнопки */}
         <div className="md:col-span-8 col-span-12 space-y-2">
 
-          <Button variant="outline" className="w-full h-10 mt-1">
+          <Button
+            variant="outline"
+            className="w-full h-10 mt-1"
+            onClick={() => navigate('/webauthn')}
+          >
             Войти по лицу или отпечатку
           </Button>
 
@@ -331,20 +392,7 @@ export default function LoginPage() {
         </div>
 
       </div>
-                   
 
-                    {/* ROW 2 */}
-                    {/* <div className="grid grid-cols-12 gap-4">
-
-                    <Button className="col-span-8 h-11" variant="outline">
-                        Вход в корпоративную сеть / SSO
-                    </Button>
-
-                    <Button className="col-span-4 h-11" variant="outline">
-                        Еще
-                    </Button>
-                    </div> */}
-                    
 
                     {/* REGISTER */}
                     <div className="text-center">
@@ -360,7 +408,7 @@ export default function LoginPage() {
                 )}
 
             {/* ===================== */}
-            {/* STEP 2 */}
+            {/* STEP 2: Password (Email mode) */}
             {/* ===================== */}
             {step === "password" && (
               <>
@@ -421,19 +469,170 @@ export default function LoginPage() {
                   <Button
                     variant="ghost"
                     className="flex-1 h-10"
-                    onClick={() => setStep("login")}
+                    onClick={handleBackToLogin}
                   >
                     ← Назад
                   </Button>
 
-                    <Button 
-                        onClick={() => navigate('/forgotPassword')} 
-                        variant="ghost" 
+                    <Button
+                        onClick={() => navigate('/forgotPassword')}
+                        variant="ghost"
                         className="flex-1 h-10"
                     >
                     Забыли пароль?
                   </Button>
                 </div>
+              </>
+            )}
+
+            {/* ===================== */}
+            {/* STEP 2: Call Code (Phone mode) */}
+            {/* ===================== */}
+            {step === "call" && (
+              <>
+                {/* AVATAR */}
+                <div className="flex justify-center">
+                    <AvatarWithLoader
+                        src={user?.imgUrl}
+                        alt={user?.name}
+                        size="xl"
+                        fallback={
+                        <span className="text-lg font-medium text-muted-foreground">
+                            {user?.name?.[0]?.toUpperCase()}
+                        </span>
+                        }
+                    />
+                </div>
+
+                {/* NAME */}
+                <div className="text-center font-medium">
+                  {user?.name}
+                </div>
+
+                {!callMade ? (
+                  <>
+                    {/* CALL INSTRUCTION */}
+                    <div className="text-center space-y-2">
+                      <p className="text-2xl font-bold">{login}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Сейчас мы позвоним на этот номер
+                      </p>
+                    </div>
+
+                    {/* CALL BUTTON */}
+                    <Button onClick={handleMakeCall} className="w-full h-11">
+                      📞 Позвонить
+                    </Button>
+
+                    {/* EXTRA */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-10"
+                        onClick={handleBackToPassword}
+                      >
+                        Пароль
+                      </Button>
+                      <Button variant="outline" className="flex-1 h-10">
+                        Другие способы
+                      </Button>
+                    </div>
+
+                    {/* BACK */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        className="flex-1 h-10"
+                        onClick={handleBackToLogin}
+                      >
+                        ← Назад
+                      </Button>
+
+                      <Button
+                        onClick={() => navigate('/forgotPassword')}
+                        variant="ghost"
+                        className="flex-1 h-10"
+                      >
+                        Забыли пароль?
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* CALL CODE INPUT */}
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Мы позвонили на {login}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Введите последние 4 цифры номера
+                        </p>
+                      </div>
+
+                      <div className="flex justify-center gap-2">
+                        {callCode.map((digit, index) => (
+                          <Input
+                            key={index}
+                            id={`call-code-${index}`}
+                            type="text"
+                            maxLength={1}
+                            className="w-12 h-12 text-center text-lg"
+                            value={digit}
+                            onChange={(e) => handleCallCodeChange(index, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Backspace" && !digit && index > 0) {
+                                const prevInput = document.getElementById(`call-code-${index - 1}`);
+                                prevInput?.focus();
+                              }
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <Button
+                        onClick={handleCallCodeSubmit}
+                        className="w-full h-11"
+                        disabled={callCode.some(d => d === "")}
+                      >
+                        Подтвердить →
+                      </Button>
+
+                      {/* EXTRA */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1 h-10"
+                          onClick={handleBackToPassword}
+                        >
+                          Пароль
+                        </Button>
+                        <Button variant="outline" className="flex-1 h-10">
+                          Другие способы
+                        </Button>
+                      </div>
+
+                      {/* BACK */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          className="flex-1 h-10"
+                          onClick={handleBackToLogin}
+                        >
+                          ← Назад
+                        </Button>
+
+                        <Button
+                          onClick={() => navigate('/forgotPassword')}
+                          variant="ghost"
+                          className="flex-1 h-10"
+                        >
+                          Забыли пароль?
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
 

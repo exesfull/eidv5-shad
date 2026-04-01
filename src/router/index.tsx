@@ -4,6 +4,7 @@ import LoginPage from '@/pages/LoginPage'
 import PasswordForgotPage from '@/pages/PasswordForgotPage'
 import CreateAccountPage from '@/pages/CreateAccountPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import WebAuthnPage from '@/pages/WebAuthnPage'
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +18,10 @@ export const router = createBrowserRouter([
   {
     path: '/forgotPassword',
     element: <PasswordForgotPage />,
+  },
+  {
+    path: '/webauthn',
+    element: <WebAuthnPage />,
   },
   {
     path: '*',
