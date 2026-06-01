@@ -17,6 +17,36 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+const CHECK_PASSWORD_ENDPOINT =
+  "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkPassword";
+
+type AuthUser = {
+  id?: number;
+  login?: string;
+  nickname?: string;
+  imgUrl?: string;
+  auth_status?: number;
+  pwd_hash_ver?: string;
+  name: string;
+};
+
+const getPasswordErrorMessage = (status?: number, fallback?: string) => {
+  if (fallback) return fallback;
+
+  switch (status) {
+    case 400:
+      return "Некорректный запрос";
+    case 401:
+      return "Неверный пароль";
+    case 404:
+      return "Пользователь или пароль не найдены";
+    case 409:
+      return "Неподдерживаемая версия пароля";
+    default:
+      return "Ошибка соединения";
+  }
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
 
@@ -30,7 +60,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [socialImagesLoaded, setSocialImagesLoaded] = useState({
@@ -107,7 +137,10 @@ export default function LoginPage() {
       const res = await axios.post(endpoint, formData);
 
       if (res.data.status) {
-        setUser(res.data.user);
+        setUser({
+          ...res.data.user,
+          name: res.data.user?.nickname ?? res.data.user?.login ?? "",
+        });
         // If phone mode, go to call step; if email mode, go to password step
         if (mode === "phone") {
           setStep("call");
@@ -117,8 +150,49 @@ export default function LoginPage() {
       } else {
         setError("Мы не нашли такого пользователя");
       }
-    } catch (e) {
+    } catch {
       setError("Ошибка соединения");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!isPasswordValid || loading) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const body = new URLSearchParams();
+      body.append("login", login);
+      body.append("password", password);
+
+      const res = await axios.post(CHECK_PASSWORD_ENDPOINT, body, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      if (res.data.status) {
+        console.log("Password login success:", res.data);
+        return;
+      }
+
+      setError(
+        getPasswordErrorMessage(undefined, res.data?.error || "Ошибка авторизации")
+      );
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        setError(
+          getPasswordErrorMessage(
+            e.response?.status,
+            e.response?.data?.error
+          )
+        );
+      } else {
+        setError("Ошибка соединения");
+      }
     } finally {
       setLoading(false);
     }
@@ -155,6 +229,7 @@ export default function LoginPage() {
     setStep("password");
     setCallMade(false);
     setCallCode(["", "", "", ""]);
+    setError("");
   };
 
   const handleBackToLogin = () => {
@@ -162,6 +237,7 @@ export default function LoginPage() {
     setCallMade(false);
     setCallCode(["", "", "", ""]);
     setPassword("");
+    setError("");
   };
 
   return (
@@ -438,20 +514,31 @@ export default function LoginPage() {
                   placeholder="Пароль"
                   className="h-10"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={!!error}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && isPasswordValid) {
-                      console.log("LOGIN");
+                    if (e.key === "Enter") {
+                      handlePasswordSubmit();
                     }
                   }}
                 />
 
+                {error && (
+                  <div className="text-sm text-center text-red-500">
+                    {error}
+                  </div>
+                )}
+
                 {/* BUTTON */}
                 <Button
-                  disabled={!isPasswordValid}
+                  disabled={!isPasswordValid || loading}
+                  onClick={handlePasswordSubmit}
                   className="w-full h-10"
                 >
-                  Продолжить →
+                  {loading ? "Проверяем пароль..." : "Продолжить →"}
                 </Button>
 
                 {/* EXTRA */}
