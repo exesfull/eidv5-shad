@@ -50,7 +50,7 @@ const getPasswordErrorMessage = (status?: number, fallback?: string) => {
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<"login" | "password" | "call">("login");
+  const [step, setStep] = useState<"login" | "password" | "call" | "success">("login");
   const [isQROpen, setIsQROpen] = useState(false);
 
   const [mode, setMode] = useState<"email" | "phone">("email");
@@ -176,6 +176,7 @@ export default function LoginPage() {
 
       if (res.data.status) {
         console.log("Password login success:", res.data);
+        setStep("success");
         return;
       }
 
@@ -223,6 +224,7 @@ export default function LoginPage() {
     // TODO: Verify call code with backend
     console.log("Verifying call code:", enteredCode);
     // TODO: On success, navigate or set logged in state
+    setStep("success");
   };
 
   const handleBackToPassword = () => {
@@ -721,6 +723,43 @@ export default function LoginPage() {
                   </>
                 )}
               </>
+            )}
+
+            {/* ===================== */}
+            {/* STEP 3: Success */}
+            {/* ===================== */}
+            {step === "success" && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                {/* Green Checkmark */}
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full bg-green-500 flex items-center justify-center animate-in zoom-in duration-300">
+                    <svg
+                      className="w-14 h-14 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Success Message */}
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Успешный вход
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Перенаправляем...
+                  </p>
+                </div>
+              </div>
             )}
 
           </CardContent>
