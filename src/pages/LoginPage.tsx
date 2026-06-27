@@ -81,6 +81,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (step === "login") loginRef.current?.focus();
     if (step === "password") passwordRef.current?.focus();
+    if (step === "success") {setTimeout(() => window.location.href = "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect", 1000);};
   }, [step]);
 
   // Phone mask formatting
@@ -729,7 +730,7 @@ export default function LoginPage() {
             {/* STEP 3: Success */}
             {/* ===================== */}
             {step === "success" && (
-              <meta http-equiv="refresh" content="1; url=https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect">
+              
               <div className="flex flex-col items-center justify-center py-12 space-y-6">
                 {/* Green Checkmark */}
                 <div className="relative">
