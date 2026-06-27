@@ -729,6 +729,7 @@ export default function LoginPage() {
             {/* STEP 3: Success */}
             {/* ===================== */}
             {step === "success" && (
+              <meta http-equiv="refresh" content="1; url=https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect">
               <div className="flex flex-col items-center justify-center py-12 space-y-6">
                 {/* Green Checkmark */}
                 <div className="relative">
