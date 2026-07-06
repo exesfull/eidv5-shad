@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Check, Loader2, Mail, RefreshCw, ArrowLeft, AlertCircle } from "lucide-react";
+import { Check, Loader2, RefreshCw, ArrowLeft, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
