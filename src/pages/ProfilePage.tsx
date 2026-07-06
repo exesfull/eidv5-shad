@@ -7,7 +7,7 @@ import { ArrowRight, LogOut, Save } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -26,6 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { eidAuthEndpoint } from "@/lib/eid-api";
 
@@ -35,7 +37,7 @@ const UPDATE_PROFILE_ENDPOINT = eidAuthEndpoint("updateProfile");
 const LOGOUT_ENDPOINT = eidAuthEndpoint("logout");
 
 type SexValue = "1" | "2" | "3";
-type CountryValue = "RU" | "BY" | "KZ" | "-" | "";
+type CountryValue = "RU" | "BY" | "KZ" | "-" | "__NONE__";
 
 type ProfileUser = {
   id: number;
@@ -60,7 +62,12 @@ type LoginCheckState = {
   rules: string[];
 };
 
-const allowedCountries: CountryValue[] = ["RU", "BY", "KZ", "-"];
+const allowedCountries: Array<Exclude<CountryValue, "__NONE__">> = [
+  "RU",
+  "BY",
+  "KZ",
+  "-",
+];
 
 function normalizeText(value?: string | null) {
   return (value ?? "").trim();
@@ -68,23 +75,18 @@ function normalizeText(value?: string | null) {
 
 function toSelectCountry(value?: string | null): CountryValue {
   const normalized = normalizeText(value).toUpperCase();
-  if (allowedCountries.includes(normalized as CountryValue)) {
-    return normalized as CountryValue;
-  }
-  return "";
+  const candidate = normalized as Exclude<CountryValue, "__NONE__">;
+  return allowedCountries.includes(candidate) ? candidate : "__NONE__";
 }
 
 function toSelectSex(value?: string | null): SexValue {
-  if (value === "2" || value === "3") {
-    return value;
-  }
+  if (value === "2" || value === "3") return value;
   return "1";
 }
 
 function formatDate(value?: string | null) {
   const normalized = normalizeText(value);
-  if (!normalized) return "";
-  return normalized.slice(0, 10);
+  return normalized ? normalized.slice(0, 10) : "";
 }
 
 function isValidName(value: string) {
@@ -106,7 +108,7 @@ function comparePromo(a?: boolean | number | null, b?: boolean) {
 }
 
 function compareCountry(a?: string | null, b?: string) {
-  return toSelectCountry(a) === (b || "");
+  return toSelectCountry(a) === (b || "__NONE__");
 }
 
 function compareSex(a?: string | null, b?: string) {
@@ -132,7 +134,6 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [otherName, setOtherName] = useState("");
-
   const [nickname, setNickname] = useState("");
   const [login, setLogin] = useState("");
   const [loginCheck, setLoginCheck] = useState<LoginCheckState>({
@@ -141,9 +142,8 @@ export default function ProfilePage() {
     available: true,
     rules: [],
   });
-
   const [birthday, setBirthday] = useState("");
-  const [country, setCountry] = useState<CountryValue>("");
+  const [country, setCountry] = useState<CountryValue>("__NONE__");
   const [sex, setSex] = useState<SexValue>("1");
   const [promoSendStatus, setPromoSendStatus] = useState(false);
 
@@ -179,9 +179,7 @@ export default function ProfilePage() {
           rules: [],
         });
       } catch {
-        if (mounted) {
-          navigate("/", { replace: true });
-        }
+        if (mounted) navigate("/", { replace: true });
       } finally {
         if (mounted) setLoading(false);
       }
@@ -264,8 +262,8 @@ export default function ProfilePage() {
 
   const promoDirty = !comparePromo(originalUser.current?.promo_send_status, promoSendStatus);
 
-  const canSaveNames = nameDirty &&
-    [firstName, lastName, otherName].every((value) => isValidName(value));
+  const canSaveNames =
+    nameDirty && [firstName, lastName, otherName].every((value) => isValidName(value));
 
   const canSaveCredentials =
     credentialsDirty &&
@@ -300,7 +298,7 @@ export default function ProfilePage() {
 
       if (section === "demographics") {
         form.set("birthday", birthday);
-        form.set("country", country);
+        form.set("country", country === "__NONE__" ? "" : country);
         form.set("sex", sex);
       }
 
@@ -373,14 +371,28 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_30%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] px-4 py-10">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-          <Card className="overflow-hidden border-border/60 bg-white/80 backdrop-blur">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="h-24 w-24 animate-pulse rounded-full bg-muted" />
-              <div className="flex-1 space-y-3">
-                <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-                <div className="h-4 w-72 animate-pulse rounded bg-muted/80" />
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+        <div className="absolute right-6 top-6">
+          <ThemeToggle />
+        </div>
+
+        <div className="w-full max-w-sm space-y-6">
+          <div className="flex flex-col items-center gap-6">
+            <div className="flex items-center font-semibold text-xl">
+              <img className="mr-1 h-8 w-8" src="https://exesfull.com/img/10.svg" alt="" />
+              Exesfull-ID
+            </div>
+          </div>
+
+          <Card className="overflow-hidden">
+            <CardContent className="space-y-6 p-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-24 w-24 animate-pulse rounded-full bg-muted" />
+                <div className="space-y-2 text-center">
+                  <div className="mx-auto h-4 w-20 animate-pulse rounded bg-muted" />
+                  <div className="mx-auto h-6 w-40 animate-pulse rounded bg-muted" />
+                  <div className="mx-auto h-3 w-52 animate-pulse rounded bg-muted" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -390,11 +402,22 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_30%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] px-4 py-8 text-foreground">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <Card className="overflow-hidden border-border/60 bg-white/80 backdrop-blur">
-          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
-            <div className="mx-auto sm:mx-0">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
+      </div>
+
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex items-center font-semibold text-xl">
+            <img className="mr-1 h-8 w-8" src="https://exesfull.com/img/10.svg" alt="" />
+            Exesfull-ID
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
+          <CardContent className="space-y-6 p-6">
+            <div className="flex flex-col items-center gap-4">
               <AvatarWithLoader
                 src={user?.img_url || undefined}
                 alt={user?.nickname || user?.login || "profile"}
@@ -405,28 +428,32 @@ export default function ProfilePage() {
                   </span>
                 }
               />
+              <div className="text-center">
+                <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
+                  Профиль
+                </p>
+                <h1 className="mt-2 text-2xl font-semibold leading-tight">
+                  {user?.nickname || user?.login}
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Управляйте личными данными и настройками аккаунта.
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1 text-center sm:text-left">
-              <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
-                Exesfull-ID
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold">
-                {user?.nickname || user?.login}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Управляйте данными профиля, логином и настройками уведомлений.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
-        <div className="grid gap-6">
-          <Card className="border-border/60 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>ФИО</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Separator />
+
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  ФИО
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Имя, фамилия и отчество
+                </p>
+              </div>
+
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">Имя</Label>
                   <Input
@@ -471,19 +498,22 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </section>
 
-          <Card className="border-border/60 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>Никнейм и login</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Здесь вы можете указать, как вы хотели бы, чтобы мы вас называли: псевдоним,
-                сокращение от имени или иное.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <Separator />
+
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Никнейм и login
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Здесь вы можете указать, как вы хотели бы, чтобы мы вас называли: псевдоним,
+                  сокращение от имени или иное.
+                </p>
+              </div>
+
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="nickname">Никнейм</Label>
                   <Input
@@ -494,6 +524,7 @@ export default function ProfilePage() {
                     placeholder="Никнейм"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="login">Login</Label>
                   <Input
@@ -506,7 +537,9 @@ export default function ProfilePage() {
                     aria-invalid={!loginCheck.valid}
                     className={cn(
                       loginCheck.loading && "border-sky-400 focus-visible:ring-sky-400/30",
-                      loginCheck.valid && loginCheck.available && "border-emerald-500 focus-visible:ring-emerald-500/30",
+                      loginCheck.valid &&
+                        loginCheck.available &&
+                        "border-emerald-500 focus-visible:ring-emerald-500/30",
                       !loginCheck.valid && "border-red-500 focus-visible:ring-red-500/30"
                     )}
                     placeholder="Логин"
@@ -541,31 +574,45 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </section>
 
-          <Card className="border-border/60 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>Контакты</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Телефон</Label>
-                <Input value={user?.phone || ""} disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Почта</Label>
-                <Input value={user?.email || ""} disabled />
-              </div>
-            </CardContent>
-          </Card>
+            <Separator />
 
-          <Card className="border-border/60 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>Дата рождения, страна и пол</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Контакты
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Телефон и почта
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Телефон</Label>
+                  <Input value={user?.phone || ""} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Почта</Label>
+                  <Input value={user?.email || ""} disabled />
+                </div>
+              </div>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Дата рождения, страна и пол
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Заполняйте по желанию
+                </p>
+              </div>
+
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="birthday">Дата рождения</Label>
                   <Input
@@ -579,16 +626,17 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Страна</Label>
-                  <Select value={country} onValueChange={(value) => setCountry(value as CountryValue)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Не указано" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RU">Россия</SelectItem>
-                      <SelectItem value="BY">Беларусь</SelectItem>
-                      <SelectItem value="KZ">Казахстан</SelectItem>
-                      <SelectItem value="-">Иная страна</SelectItem>
-                    </SelectContent>
+                    <Select value={country} onValueChange={(value) => setCountry(value as CountryValue)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Не указано" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__NONE__">Не указано</SelectItem>
+                        <SelectItem value="RU">Россия</SelectItem>
+                        <SelectItem value="BY">Беларусь</SelectItem>
+                        <SelectItem value="KZ">Казахстан</SelectItem>
+                        <SelectItem value="-">Иная страна</SelectItem>
+                      </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
@@ -618,15 +666,21 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </section>
 
-          <Card className="border-border/60 bg-white/90 shadow-sm">
-            <CardHeader>
-              <CardTitle>Промо уведомления</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
+            <Separator />
+
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Промо уведомления
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Включение маркетинговых уведомлений
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-xl border border-border/60 p-4">
                 <Checkbox
                   checked={promoSendStatus}
                   onCheckedChange={(checked) => setPromoSendStatus(checked === true)}
@@ -652,33 +706,31 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </section>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="outline" className="gap-2" disabled>
+                  <ArrowRight className="h-4 w-4" />
+                  Сменить аккаунт
+                </Button>
+
+                <Button variant="destructive" className="gap-2" onClick={() => setLogoutOpen(true)}>
+                  <LogOut className="h-4 w-4" />
+                  Выйти
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {error && (
-          <Card className="border-red-500/20 bg-red-50/80 text-red-700">
-            <CardContent className="p-4 text-sm">
-              {error}
-            </CardContent>
+          <Card className="border-red-500/20 bg-red-50/80 text-red-700 dark:bg-red-950/20 dark:text-red-200">
+            <CardContent className="p-4 text-sm">{error}</CardContent>
           </Card>
         )}
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button variant="outline" className="gap-2" disabled>
-            <ArrowRight className="h-4 w-4" />
-            Сменить аккаунт
-          </Button>
-
-          <Button
-            variant="destructive"
-            className="gap-2"
-            onClick={() => setLogoutOpen(true)}
-          >
-            <LogOut className="h-4 w-4" />
-            Выйти
-          </Button>
-        </div>
       </div>
 
       <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>

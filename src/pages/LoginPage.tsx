@@ -328,19 +328,15 @@ export default function LoginPage() {
           <Card className="overflow-hidden border-emerald-500/20 bg-emerald-500/8 shadow-lg shadow-emerald-500/10">
             <CardContent className="flex items-center gap-3 p-4">
               <Button
-                size="icon"
-                className="shrink-0 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+                className="h-10 shrink-0 gap-2 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
                 onClick={() => navigate('/my/profile')}
               >
+                <span className="font-medium">Профиль</span>
                 <ArrowRight className="h-4 w-4" />
-                <span className="sr-only">Открыть профиль</span>
               </Button>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">
                   Привет, {currentUser.nickname || currentUser.login}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  Ваш аккаунт уже авторизован. Откройте профиль, чтобы изменить данные.
                 </p>
               </div>
             </CardContent>
