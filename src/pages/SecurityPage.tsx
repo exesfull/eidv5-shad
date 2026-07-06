@@ -81,7 +81,15 @@ function formatDateTime(value?: string | null) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.error || fallback;
+    const errorText = error.response?.data?.error || fallback;
+    const details = error.response?.data?.details;
+    if (details && typeof details === "object") {
+      const renderedDetails = Object.entries(details)
+        .map(([key, value]) => `${key}: ${String(value)}`)
+        .join("\n");
+      return `${errorText}\n${renderedDetails}`;
+    }
+    return errorText;
   }
 
   if (error instanceof Error) {
@@ -131,7 +139,7 @@ function PinCodeInput({
             type="text"
             maxLength={1}
             inputMode="numeric"
-            autoComplete="new-password"
+            autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
@@ -383,7 +391,13 @@ export default function SecurityPage() {
 
       const finishRes = await axios.post(FINISH_WEBAUTHN_REG_ENDPOINT, finishForm);
       if (!finishRes.data?.status) {
-        throw new Error(finishRes.data?.error || "Не удалось сохранить ключ");
+        const baseError = finishRes.data?.error || "Не удалось сохранить ключ";
+        const details = finishRes.data?.details && typeof finishRes.data.details === "object"
+          ? Object.entries(finishRes.data.details)
+              .map(([key, value]) => `${key}: ${String(value)}`)
+              .join("\n")
+          : "";
+        throw new Error(details ? `${baseError}\n${details}` : baseError);
       }
 
       setDeviceOpen(false);

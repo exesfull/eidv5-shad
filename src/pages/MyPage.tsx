@@ -133,11 +133,6 @@ export default function MyPage() {
                 Сменить аккаунт
               </Button>
 
-              <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
-                <LogOut className="h-4 w-4" />
-                Выйти
-              </Button>
-
               <Button className="h-11 w-full gap-2" onClick={() => navigate("/my/profile")}>
                 <User className="h-4 w-4" />
                 Профиль
@@ -154,6 +149,11 @@ export default function MyPage() {
                   Сеансы
                 </Button>
               </div>
+
+              <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
+                <LogOut className="h-4 w-4" />
+                Выйти
+              </Button>
             </div>
           </CardContent>
         </Card>
