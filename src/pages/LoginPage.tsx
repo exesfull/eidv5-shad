@@ -36,6 +36,7 @@ type CurrentUser = {
   id: number;
   login: string;
   nickname: string;
+  first_name?: string | null;
   img_url?: string;
 };
 
@@ -108,6 +109,7 @@ export default function LoginPage() {
             id: res.data.user.id,
             login: res.data.user.login,
             nickname: res.data.user.nickname,
+            first_name: res.data.user.first_name,
             img_url: res.data.user.img_url,
           });
         } else {
@@ -328,7 +330,7 @@ export default function LoginPage() {
           <Card className="overflow-hidden border-emerald-500/20 bg-emerald-500/8 shadow-lg shadow-emerald-500/10">
             <CardContent className="flex items-center justify-between gap-3 p-4">
               <p className="min-w-0 truncate text-sm font-medium text-foreground">
-                {currentUser.nickname || currentUser.login}
+                Привет, {currentUser.first_name || currentUser.nickname || currentUser.login}
               </p>
               <Button
                 className="h-10 shrink-0 gap-2 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"

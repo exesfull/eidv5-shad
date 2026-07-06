@@ -61,6 +61,8 @@ type SecurityCredential = {
 type SecurityData = {
   password_set_at?: string | null;
   pin_set_at?: string | null;
+  pin_deleted_at?: string | null;
+  pin_active?: boolean;
   credentials?: SecurityCredential[];
 };
 
@@ -75,74 +77,78 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-function MaskedPinInput({
+function PinCodeInput({
   value,
   onChange,
-  placeholder,
   disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
-  placeholder: string;
   disabled?: boolean;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
+  const refs = useRef<Array<HTMLInputElement | null>>([]);
+  const cells = Array.from({ length: 4 }, (_, index) => value[index] ?? "");
 
   useEffect(() => {
-    if (ref.current && !disabled) {
-      ref.current.setSelectionRange(0, ref.current.value.length);
+    if (!disabled) {
+      const focusIndex = Math.min(value.length, 3);
+      refs.current[focusIndex]?.focus();
     }
-  }, [value, disabled]);
+  }, [disabled, value.length]);
+
+  const setCell = (index: number, nextValue: string) => {
+    const digit = nextValue.replace(/\D/g, "").slice(-1);
+    const next = cells.map((cell, cellIndex) => (cellIndex === index ? digit : cell)).join("").slice(0, 4);
+    onChange(next);
+    if (digit && index < 3) {
+      refs.current[index + 1]?.focus();
+    }
+  };
 
   return (
-    <Input
-      ref={ref}
-      type="text"
-      inputMode="numeric"
-      autoComplete="new-password"
-      name="security-pin"
-      spellCheck={false}
-      aria-autocomplete="none"
-      data-form-type="other"
-      data-1p-ignore="true"
-      data-lpignore="true"
-      data-pslq="true"
-      className="h-12 text-base tracking-[0.5em] text-center font-mono"
-      value={"*".repeat(value.length)}
-      placeholder={placeholder}
-      disabled={disabled}
-      onFocus={() => ref.current?.select()}
-      onKeyDown={(event) => {
-        if (disabled) return;
-
-        if (/^[0-9]$/.test(event.key)) {
-          event.preventDefault();
-          if (value.length < 4) {
-            onChange(`${value}${event.key}`);
-          }
-          return;
-        }
-
-        if (event.key === "Backspace") {
-          event.preventDefault();
-          onChange(value.slice(0, -1));
-          return;
-        }
-
-        if (event.key === "Delete") {
-          event.preventDefault();
-          onChange("");
-        }
-      }}
-      onPaste={(event) => {
-        if (disabled) return;
-        event.preventDefault();
-        const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-        if (pasted) {
-          onChange(pasted);
-        }
-      }}
-    />
+    <div className="flex justify-center gap-2">
+      {cells.map((cell, index) => (
+        <Input
+          key={index}
+          ref={(node) => {
+            refs.current[index] = node;
+          }}
+          id={`call-code-${index}`}
+          type="text"
+          maxLength={1}
+          inputMode="numeric"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-12 h-12 text-center text-lg"
+          value={cell}
+          disabled={disabled}
+          onFocus={() => refs.current[index]?.select()}
+          onChange={(event) => setCell(index, event.target.value)}
+          onKeyDown={(event) => {
+            if (disabled) return;
+            if (event.key === "Backspace") {
+              event.preventDefault();
+              if (cell) {
+                setCell(index, "");
+              } else if (index > 0) {
+                refs.current[index - 1]?.focus();
+                onChange(value.slice(0, -1));
+              }
+            }
+          }}
+          onPaste={(event) => {
+            if (disabled) return;
+            event.preventDefault();
+            const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+            if (!pasted) return;
+            onChange(pasted);
+            window.setTimeout(() => {
+              refs.current[Math.min(pasted.length, 3)]?.focus();
+            }, 0);
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -157,10 +163,13 @@ export default function SecurityPage() {
   const [security, setSecurity] = useState<SecurityData | null>(null);
 
   const [pinOpen, setPinOpen] = useState(false);
+  const [pinMode, setPinMode] = useState<"set" | "delete">("set");
   const [pinFirst, setPinFirst] = useState("");
   const [pinSecond, setPinSecond] = useState("");
   const [pinStep, setPinStep] = useState<"first" | "second" | "saving">("first");
   const [pinStatusMessage, setPinStatusMessage] = useState("");
+  const [pinDeleteCode, setPinDeleteCode] = useState("");
+  const [pinDeleteMessage, setPinDeleteMessage] = useState("");
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [deviceName, setDeviceName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SecurityCredential | null>(null);
@@ -207,10 +216,13 @@ export default function SecurityPage() {
 
   useEffect(() => {
     if (!pinOpen) {
+      setPinMode("set");
       setPinFirst("");
       setPinSecond("");
+      setPinDeleteCode("");
       setPinStep("first");
       setPinStatusMessage("");
+      setPinDeleteMessage("");
       setError("");
     }
   }, [pinOpen]);
@@ -246,6 +258,33 @@ export default function SecurityPage() {
     }
   };
 
+  const deletePin = async (currentPin: string) => {
+    if (currentPin.length !== 4) return;
+
+    setSavingPin(true);
+    setPinStep("saving");
+    setError("");
+
+    try {
+      const form = new URLSearchParams();
+      form.set("pin", currentPin);
+      const res = await axios.post(eidAuthEndpoint("deletePin"), form);
+      if (!res.data?.status) {
+        throw new Error(res.data?.error || "Не удалось удалить PIN");
+      }
+      setSecurity(res.data.security ?? null);
+      setPinDeleteMessage("PIN удалён");
+      window.setTimeout(() => {
+        setPinOpen(false);
+      }, 900);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить PIN");
+      setPinStep("first");
+    } finally {
+      setSavingPin(false);
+    }
+  };
+
   const handlePinFirstChange = (value: string) => {
     const next = value.replace(/\D/g, "").slice(0, 4);
     setPinFirst(next);
@@ -259,6 +298,15 @@ export default function SecurityPage() {
     setError("");
     if (next.length === 4 && pinFirst.length === 4 && next === pinFirst) {
       void submitPin(pinFirst, next);
+    }
+  };
+
+  const handlePinDeleteChange = (value: string) => {
+    const next = value.replace(/\D/g, "").slice(0, 4);
+    setPinDeleteCode(next);
+    setError("");
+    if (next.length === 4) {
+      void deletePin(next);
     }
   };
 
@@ -384,14 +432,16 @@ export default function SecurityPage() {
               <section className="space-y-3">
                 <div className="space-y-1">
                   <Label>Дата смены/установки пароля</Label>
-                  <div className="rounded-xl border border-border/70 px-3 py-3 text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     {formatDateTime(security?.password_set_at)}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label>Дата установки PIN</Label>
-                  <div className="rounded-xl border border-border/70 px-3 py-3 text-sm text-muted-foreground">
-                    {formatDateTime(security?.pin_set_at)}
+                  <Label>
+                    {security?.pin_active ? "Дата установки PIN" : "Дата удаления PIN"}
+                  </Label>
+                  <div className="text-sm text-muted-foreground">
+                    {formatDateTime(security?.pin_active ? security?.pin_set_at : security?.pin_deleted_at)}
                   </div>
                 </div>
               </section>
@@ -404,9 +454,28 @@ export default function SecurityPage() {
                     <h2 className="text-base font-semibold">PIN</h2>
                     <p className="text-xs text-muted-foreground">4 цифры, без password-поля</p>
                   </div>
-                  <Button className="h-11 shrink-0" onClick={() => setPinOpen(true)}>
-                    Установить PIN
-                  </Button>
+                  {security?.pin_active ? (
+                    <Button
+                      className="h-11 shrink-0"
+                      variant="outline"
+                      onClick={() => {
+                        setPinMode("delete");
+                        setPinOpen(true);
+                      }}
+                    >
+                      Удалить PIN
+                    </Button>
+                  ) : (
+                    <Button
+                      className="h-11 shrink-0"
+                      onClick={() => {
+                        setPinMode("set");
+                        setPinOpen(true);
+                      }}
+                    >
+                      Установить PIN
+                    </Button>
+                  )}
                 </div>
               </section>
 
@@ -484,36 +553,54 @@ export default function SecurityPage() {
       <Dialog open={pinOpen} onOpenChange={setPinOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Установить PIN</DialogTitle>
+            <DialogTitle>{pinMode === "set" ? "Установить PIN" : "Удалить PIN"}</DialogTitle>
             <DialogDescription>
-              Введите 4 цифры два раза. После второго ввода PIN сохранится автоматически.
+              {pinMode === "set"
+                ? "Введите 4 цифры два раза. После второго ввода PIN сохранится автоматически."
+                : "Введите текущий PIN код, чтобы удалить его."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>PIN</Label>
-              <MaskedPinInput value={pinFirst} onChange={handlePinFirstChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
-            </div>
+            {pinMode === "set" ? (
+              <>
+                <div className="space-y-2">
+                  <Label>PIN</Label>
+                  <PinCodeInput value={pinFirst} onChange={handlePinFirstChange} disabled={pinStep === "saving" || savingPin} />
+                </div>
 
-            {pinFirst.length === 4 && (
+                {pinFirst.length === 4 && (
+                  <div className="space-y-2">
+                    <Label>Повторите PIN</Label>
+                    <PinCodeInput value={pinSecond} onChange={handlePinSecondChange} disabled={pinStep === "saving" || savingPin} />
+                  </div>
+                )}
+              </>
+            ) : (
               <div className="space-y-2">
-                <Label>Повторите PIN</Label>
-                <MaskedPinInput value={pinSecond} onChange={handlePinSecondChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
+                <Label>Текущий PIN</Label>
+                <PinCodeInput value={pinDeleteCode} onChange={handlePinDeleteChange} disabled={pinStep === "saving" || savingPin} />
               </div>
             )}
 
             {(pinStep === "saving" || savingPin) && (
-              <div className="flex items-center gap-3 rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Секундочку, сохраняем PIN...
+                {pinMode === "set" ? "Секундочку, сохраняем PIN..." : "Секундочку, удаляем PIN..."}
               </div>
             )}
 
-            {pinStatusMessage && pinStep !== "saving" && (
-              <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+            {pinStatusMessage && pinStep !== "saving" && pinMode === "set" && (
+              <div className="flex items-center gap-3 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
                 <Check className="h-4 w-4" />
                 {pinStatusMessage}
+              </div>
+            )}
+
+            {pinDeleteMessage && pinStep !== "saving" && pinMode === "delete" && (
+              <div className="flex items-center gap-3 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" />
+                {pinDeleteMessage}
               </div>
             )}
           </div>

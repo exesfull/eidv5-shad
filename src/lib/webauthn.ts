@@ -24,14 +24,18 @@ function normalizeBase64Input(value: string) {
 }
 
 export function base64UrlToUint8Array(value: string): Uint8Array {
-  const normalized = normalizeBase64Input(value).replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
+  try {
+    const normalized = normalizeBase64Input(value).replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    return new Uint8Array();
   }
-  return bytes;
 }
 
 export function uint8ArrayToBase64Url(value: Uint8Array) {
