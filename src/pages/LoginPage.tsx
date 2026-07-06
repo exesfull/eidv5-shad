@@ -17,16 +17,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Fingerprint, Loader2 } from "lucide-react";
 import { eidAuthEndpoint } from "@/lib/eid-api";
 
 const CHECK_PASSWORD_ENDPOINT = eidAuthEndpoint("checkPassword");
 const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
+const START_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("startWebauthnLogin");
+const PENDING_AUTH_STORAGE_KEY = "eidPendingAuthUser";
 
 type AuthUser = {
   id?: number;
   login?: string;
   nickname?: string;
+  email?: string;
   imgUrl?: string;
   auth_status?: number;
   pwd_hash_ver?: string;
@@ -76,6 +79,8 @@ export default function LoginPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [socialImagesLoaded, setSocialImagesLoaded] = useState({
@@ -92,6 +97,43 @@ export default function LoginPage() {
 
   const loginRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+
+  const storePendingAuthUser = (payload: Record<string, unknown>) => {
+    sessionStorage.setItem(PENDING_AUTH_STORAGE_KEY, JSON.stringify(payload));
+  };
+
+  const probeBiometricAvailability = async (targetLogin: string) => {
+    const normalizedLogin = targetLogin.trim();
+    if (!normalizedLogin) {
+      setBiometricAvailable(false);
+      return;
+    }
+
+    setBiometricLoading(true);
+    setBiometricAvailable(null);
+
+    try {
+      if (!window.PublicKeyCredential) {
+        setBiometricAvailable(false);
+        return;
+      }
+
+      const form = new URLSearchParams();
+      form.set("login", normalizedLogin);
+
+      const res = await axios.post(
+        START_WEBAUTHN_LOGIN_ENDPOINT,
+        form,
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      setBiometricAvailable(Boolean(res.data?.status && (res.data?.credentials?.length ?? 0) > 0));
+    } catch {
+      setBiometricAvailable(false);
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (step === "login") loginRef.current?.focus();
@@ -168,6 +210,8 @@ export default function LoginPage() {
     setMode(newMode);
     setLogin("");
     setError("");
+    setBiometricAvailable(null);
+    setBiometricLoading(false);
     setTimeout(() => loginRef.current?.focus(), 0);
   };
 
@@ -193,13 +237,25 @@ export default function LoginPage() {
       const res = await axios.post(endpoint, formData);
 
       if (res.data.status) {
+        const targetUser = {
+          id: res.data.user?.id,
+          login: res.data.user?.login ?? login,
+          nickname: res.data.user?.nickname ?? res.data.user?.name ?? "",
+          email: res.data.user?.email ?? "",
+          imgUrl: res.data.user?.imgUrl,
+          light_mode: res.data.user?.light_mode ?? "system",
+        };
+
         setUser({
           ...res.data.user,
-          name: res.data.user?.nickname ?? res.data.user?.login ?? "",
+          name: res.data.user?.nickname ?? res.data.user?.name ?? res.data.user?.login ?? "",
         });
-        if (res.data.user?.light_mode) {
-          setTheme(res.data.user.light_mode);
+        storePendingAuthUser(targetUser);
+
+        if (targetUser.light_mode) {
+          setTheme(targetUser.light_mode as "system" | "light" | "dark");
         }
+        void probeBiometricAvailability(targetUser.login || login);
         // If phone mode, go to call step; if email mode, go to password step
         if (mode === "phone") {
           setStep("call");
@@ -299,6 +355,8 @@ export default function LoginPage() {
     setCallCode(["", "", "", ""]);
     setPassword("");
     setError("");
+    setBiometricAvailable(null);
+    setBiometricLoading(false);
   };
 
   return (
@@ -347,7 +405,7 @@ export default function LoginPage() {
               </p>
               <Button
                 className="h-10 shrink-0 gap-2 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
-                onClick={() => navigate('/my/profile')}
+                onClick={() => navigate('/my/')}
               >
                 <span className="font-medium">Профиль</span>
                 <ArrowRight className="h-4 w-4" />
@@ -595,7 +653,7 @@ export default function LoginPage() {
                   {user?.name}
                 </div>
 
-                {/* PASSWORD */}
+                    {/* PASSWORD */}
                 <Input
                   ref={passwordRef}
                   type="password"
@@ -631,13 +689,33 @@ export default function LoginPage() {
 
                 {/* EXTRA */}
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 h-10">
+                  <Button
+                    variant="outline"
+                    className="flex-1 h-10 gap-2"
+                    onClick={() => navigate('/push-auth')}
+                  >
                     PUSH
                   </Button>
                   <Button variant="outline" className="flex-1 h-10">
                     Другие способы
                   </Button>
                 </div>
+
+                {biometricLoading ? (
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Проверяем биометрию...
+                  </div>
+                ) : biometricAvailable ? (
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full gap-2"
+                    onClick={() => navigate('/webauthn')}
+                  >
+                    <Fingerprint className="h-4 w-4" />
+                    Войти по биометрии
+                  </Button>
+                ) : null}
 
                 {/* BACK */}
                 <div className="flex gap-2">

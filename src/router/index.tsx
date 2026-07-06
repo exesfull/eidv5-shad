@@ -5,6 +5,8 @@ import PasswordForgotPage from '@/pages/PasswordForgotPage'
 import CreateAccountPage from '@/pages/CreateAccountPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import WebAuthnPage from '@/pages/WebAuthnPage'
+import PushAuthPage from '@/pages/PushAuthPage'
+import PushAuthEmailPage from '@/pages/PushAuthEmailPage'
 import ProfilePage from '@/pages/ProfilePage'
 import SecurityPage from '@/pages/SecurityPage'
 import SessionsPage from '@/pages/SessionsPage'
@@ -27,6 +29,14 @@ export const router = createBrowserRouter([
   {
     path: '/webauthn',
     element: <WebAuthnPage />,
+  },
+  {
+    path: '/push-auth',
+    element: <PushAuthPage />,
+  },
+  {
+    path: '/push-auth/email',
+    element: <PushAuthEmailPage />,
   },
   {
     path: '/my/profile',

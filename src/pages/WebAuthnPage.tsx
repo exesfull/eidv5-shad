@@ -18,6 +18,7 @@ import {
 
 const START_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("startWebauthnLogin");
 const FINISH_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("finishWebauthnLogin");
+const PENDING_AUTH_STORAGE_KEY = "eidPendingAuthUser";
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
@@ -50,7 +51,21 @@ export default function WebAuthnPage() {
         throw new Error("WebAuthn не поддерживается в этом браузере");
       }
 
-      const startRes = await axios.post(START_WEBAUTHN_LOGIN_ENDPOINT, new URLSearchParams());
+      let pendingUser: any = null;
+      try {
+        const pendingRaw = sessionStorage.getItem(PENDING_AUTH_STORAGE_KEY);
+        pendingUser = pendingRaw ? JSON.parse(pendingRaw) : null;
+      } catch {
+        pendingUser = null;
+      }
+      const startForm = new URLSearchParams();
+      if (pendingUser?.login) {
+        startForm.set("login", pendingUser.login);
+      } else if (pendingUser?.email) {
+        startForm.set("login", pendingUser.email);
+      }
+
+      const startRes = await axios.post(START_WEBAUTHN_LOGIN_ENDPOINT, startForm);
       if (!startRes.data?.status) {
         throw new Error(startRes.data?.error || "Не удалось начать вход по биометрии");
       }
