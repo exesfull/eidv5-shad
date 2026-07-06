@@ -16,9 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
+import { eidAuthEndpoint } from "@/lib/eid-api";
 
-const CHECK_PASSWORD_ENDPOINT =
-  "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/checkPassword";
+const CHECK_PASSWORD_ENDPOINT = eidAuthEndpoint("checkPassword");
+const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
 
 type AuthUser = {
   id?: number;
@@ -28,6 +30,13 @@ type AuthUser = {
   auth_status?: number;
   pwd_hash_ver?: string;
   name: string;
+};
+
+type CurrentUser = {
+  id: number;
+  login: string;
+  nickname: string;
+  img_url?: string;
 };
 
 const getPasswordErrorMessage = (status?: number, fallback?: string) => {
@@ -61,6 +70,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [socialImagesLoaded, setSocialImagesLoaded] = useState({
@@ -83,6 +94,38 @@ export default function LoginPage() {
     if (step === "password") passwordRef.current?.focus();
     if (step === "success") {setTimeout(() => window.location.href = "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect", 1000);};
   }, [step]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const res = await axios.post(CURRENT_USER_ENDPOINT, new URLSearchParams());
+        if (!mounted) return;
+
+        if (res.data?.authorized && res.data?.user) {
+          setCurrentUser({
+            id: res.data.user.id,
+            login: res.data.user.login,
+            nickname: res.data.user.nickname,
+            img_url: res.data.user.img_url,
+          });
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        if (mounted) setCurrentUser(null);
+      } finally {
+        if (mounted) setAuthLoading(false);
+      }
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Phone mask formatting
   const formatPhone = (value: string) => {
@@ -270,6 +313,39 @@ export default function LoginPage() {
                 Exesfull-ID
             </div>
         </div>
+
+        {authLoading ? (
+          <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </CardContent>
+          </Card>
+        ) : currentUser ? (
+          <Card className="overflow-hidden border-emerald-500/20 bg-emerald-500/8 shadow-lg shadow-emerald-500/10">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Button
+                size="icon"
+                className="shrink-0 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+                onClick={() => navigate('/my/profile')}
+              >
+                <ArrowRight className="h-4 w-4" />
+                <span className="sr-only">Открыть профиль</span>
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  Привет, {currentUser.nickname || currentUser.login}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  Ваш аккаунт уже авторизован. Откройте профиль, чтобы изменить данные.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader className="text-center">
