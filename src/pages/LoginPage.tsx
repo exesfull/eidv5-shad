@@ -23,7 +23,9 @@ import { eidAuthEndpoint } from "@/lib/eid-api";
 const CHECK_PASSWORD_ENDPOINT = eidAuthEndpoint("checkPassword");
 const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
 const START_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("startWebauthnLogin");
+const GET_QR_URL_ENDPOINT = eidAuthEndpoint("getQrUrl");
 const PENDING_AUTH_STORAGE_KEY = "eidPendingAuthUser";
+const AFTER_LOGIN_REDIRECT_KEY = "eidAfterLoginRedirect";
 
 type AuthUser = {
   id?: number;
@@ -90,6 +92,8 @@ export default function LoginPage() {
     telegram: false,
   });
   const [qrLoaded, setQrLoaded] = useState(false);
+  const [qrValue, setQrValue] = useState("");
+  const [qrStamp, setQrStamp] = useState(0);
 
   // Call code state
   const [callCode, setCallCode] = useState(["", "", "", ""]);
@@ -138,7 +142,18 @@ export default function LoginPage() {
   useEffect(() => {
     if (step === "login") loginRef.current?.focus();
     if (step === "password") passwordRef.current?.focus();
-    if (step === "success") {setTimeout(() => window.location.href = "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect", 1000);};
+    if (step === "success") {
+      const redirectTarget = sessionStorage.getItem(AFTER_LOGIN_REDIRECT_KEY);
+      setTimeout(() => {
+        if (redirectTarget) {
+          sessionStorage.removeItem(AFTER_LOGIN_REDIRECT_KEY);
+          window.location.href = redirectTarget;
+          return;
+        }
+
+        window.location.href = "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect";
+      }, 1000);
+    };
   }, [step]);
 
   useEffect(() => {
@@ -180,6 +195,39 @@ export default function LoginPage() {
       setTheme(currentUser.light_mode);
     }
   }, [currentUser?.light_mode, setTheme]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadQr = async () => {
+      try {
+        const res = await axios.get(GET_QR_URL_ENDPOINT, {
+          responseType: "text",
+        });
+
+        if (!mounted) return;
+
+        const raw = String(res.data || "").trim();
+        setQrValue(raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1) : raw);
+        setQrStamp(Date.now());
+        setQrLoaded(false);
+      } catch {
+        if (mounted) {
+          setQrValue("");
+        }
+      }
+    };
+
+    void loadQr();
+    const timer = window.setInterval(() => {
+      void loadQr();
+    }, 60000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // Phone mask formatting
   const formatPhone = (value: string) => {
@@ -584,7 +632,7 @@ export default function LoginPage() {
                     <Skeleton className="h-[120px] w-[120px] rounded-md" />
                   )}
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrValue || "https://exesfull.com")}&ts=${qrStamp}`}
                     className="rounded-md"
                     alt="QR"
                     onLoad={() => setQrLoaded(true)}
@@ -604,7 +652,7 @@ export default function LoginPage() {
               <Skeleton className="h-[120px] w-[120px] rounded-md" />
             )}
             <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://ui.shadcn.com/docs/components/radix/button-group"
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrValue || "https://exesfull.com")}&ts=${qrStamp}`}
               className="rounded-md"
               alt="QR"
               onLoad={() => setQrLoaded(true)}

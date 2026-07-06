@@ -145,7 +145,7 @@ export default function MyPage() {
                 </Button>
               </div>
 
-              <Button variant="outline" className="h-11 w-full gap-2" disabled>
+              <Button variant="outline" className="h-11 w-full gap-2" onClick={() => navigate("/swich-accoutn")}>
                 <ArrowRight className="h-4 w-4" />
                 Сменить аккаунт
               </Button>
