@@ -128,12 +128,7 @@ export default function MyPage() {
             </div>
 
             <div className="space-y-3">
-              <Button variant="outline" className="h-11 w-full gap-2" disabled>
-                <ArrowRight className="h-4 w-4" />
-                Сменить аккаунт
-              </Button>
-
-              <Button className="h-11 w-full gap-2" onClick={() => navigate("/my/profile")}>
+              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/profile")}>
                 <User className="h-4 w-4" />
                 Профиль
               </Button>
@@ -149,6 +144,11 @@ export default function MyPage() {
                   Сеансы
                 </Button>
               </div>
+
+              <Button variant="outline" className="h-11 w-full gap-2" disabled>
+                <ArrowRight className="h-4 w-4" />
+                Сменить аккаунт
+              </Button>
 
               <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
                 <LogOut className="h-4 w-4" />
