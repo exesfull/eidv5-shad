@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight,
+  ArrowLeft,
   Check,
   Loader2,
   Plus,
@@ -99,7 +99,12 @@ function MaskedPinInput({
       ref={ref}
       type="text"
       inputMode="numeric"
-      autoComplete="off"
+      autoComplete="new-password"
+      name="security-pin"
+      spellCheck={false}
+      aria-autocomplete="none"
+      data-form-type="other"
+      data-1p-ignore="true"
       className="h-12 text-base tracking-[0.5em] text-center font-mono"
       value={"*".repeat(value.length)}
       placeholder={placeholder}
@@ -153,6 +158,7 @@ export default function SecurityPage() {
   const [pinFirst, setPinFirst] = useState("");
   const [pinSecond, setPinSecond] = useState("");
   const [pinStep, setPinStep] = useState<"first" | "second" | "saving">("first");
+  const [pinStatusMessage, setPinStatusMessage] = useState("");
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [deviceName, setDeviceName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SecurityCredential | null>(null);
@@ -202,6 +208,7 @@ export default function SecurityPage() {
       setPinFirst("");
       setPinSecond("");
       setPinStep("first");
+      setPinStatusMessage("");
       setError("");
     }
   }, [pinOpen]);
@@ -224,7 +231,9 @@ export default function SecurityPage() {
         throw new Error(res.data?.error || "Не удалось сохранить PIN");
       }
       setSecurity(res.data.security ?? null);
-      setPinOpen(false);
+      setPinStatusMessage("PIN сохранён");
+      setPinStep("first");
+      window.setTimeout(() => setPinOpen(false), 900);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить PIN");
       setPinStep("second");
@@ -371,19 +380,15 @@ export default function SecurityPage() {
               <section className="space-y-3">
                 <div className="space-y-1">
                   <Label>Дата смены/установки пароля</Label>
-                  <Input
-                    className="h-11 text-base"
-                    value={formatDateTime(security?.password_set_at)}
-                    disabled
-                  />
+                  <div className="rounded-xl border border-border/70 px-3 py-3 text-sm text-muted-foreground">
+                    {formatDateTime(security?.password_set_at)}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label>Дата установки PIN</Label>
-                  <Input
-                    className="h-11 text-base"
-                    value={formatDateTime(security?.pin_set_at)}
-                    disabled
-                  />
+                  <div className="rounded-xl border border-border/70 px-3 py-3 text-sm text-muted-foreground">
+                    {formatDateTime(security?.pin_set_at)}
+                  </div>
                 </div>
               </section>
 
@@ -449,8 +454,8 @@ export default function SecurityPage() {
               <Separator />
 
               <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/profile")}>
-                <ArrowRight className="h-4 w-4" />
-                Вернуться в профиль
+                <ArrowLeft className="h-4 w-4" />
+                Назад
               </Button>
 
               {error && (
@@ -499,6 +504,13 @@ export default function SecurityPage() {
               <div className="flex items-center gap-3 rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Секундочку, сохраняем PIN...
+              </div>
+            )}
+
+            {pinStatusMessage && pinStep !== "saving" && (
+              <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" />
+                {pinStatusMessage}
               </div>
             )}
           </div>

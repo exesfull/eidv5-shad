@@ -684,7 +684,7 @@ export default function ProfilePage() {
             <Separator />
 
             <div className="space-y-3">
-              <Button className="h-11 w-full gap-2" disabled>
+              <Button variant="outline" className="h-11 w-full gap-2" disabled>
                 <ArrowRight className="h-4 w-4" />
                 Сменить аккаунт
               </Button>
