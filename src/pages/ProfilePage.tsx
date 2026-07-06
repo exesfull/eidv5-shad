@@ -59,6 +59,7 @@ type LoginCheckState = {
   loading: boolean;
   valid: boolean;
   available: boolean;
+  same: boolean;
   rules: string[];
 };
 
@@ -97,6 +98,15 @@ function isValidName(value: string) {
 function isValidNickname(value: string) {
   if (!value.trim()) return true;
   return value.trim().length <= 50;
+}
+
+function isValidLogin(value: string) {
+  if (!value.trim()) return false;
+  return /^[a-z._-]+$/.test(value.trim()) && value.trim().length >= 4;
+}
+
+function isLoginRuleCompliant(value: string) {
+  return /^[a-z._-]+$/.test(value.trim());
 }
 
 function compareNullableText(a?: string | null, b?: string | null) {
@@ -140,6 +150,7 @@ export default function ProfilePage() {
     loading: false,
     valid: true,
     available: true,
+    same: true,
     rules: [],
   });
   const [birthday, setBirthday] = useState("");
@@ -176,6 +187,7 @@ export default function ProfilePage() {
           loading: false,
           valid: true,
           available: true,
+          same: true,
           rules: [],
         });
       } catch {
@@ -203,6 +215,7 @@ export default function ProfilePage() {
         loading: false,
         valid: false,
         available: false,
+        same: false,
         rules: ["Логин обязателен", "Логин должен быть не короче 4 символов"],
       });
       return;
@@ -213,6 +226,7 @@ export default function ProfilePage() {
         loading: false,
         valid: true,
         available: true,
+        same: true,
         rules: [],
       });
       return;
@@ -231,6 +245,7 @@ export default function ProfilePage() {
           loading: false,
           valid: Boolean(res.data?.valid),
           available: Boolean(res.data?.available),
+          same: false,
           rules: Array.isArray(res.data?.rules) ? res.data.rules : [],
         });
       } catch {
@@ -238,6 +253,7 @@ export default function ProfilePage() {
           loading: false,
           valid: false,
           available: false,
+          same: false,
           rules: ["Не удалось проверить логин"],
         });
       }
@@ -268,12 +284,14 @@ export default function ProfilePage() {
   const canSaveCredentials =
     credentialsDirty &&
     isValidNickname(nickname) &&
+    isValidLogin(login) &&
     !loginCheck.loading &&
     loginCheck.valid &&
     loginCheck.available;
 
   const canSaveDemographics = demographicsDirty;
   const canSavePromo = promoDirty;
+  const loginFormatValid = isLoginRuleCompliant(login);
 
   const saveSection = async (section: string) => {
     if (!user) return;
@@ -369,39 +387,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
-        <div className="absolute right-6 top-6">
-          <ThemeToggle />
-        </div>
-
-        <div className="w-full max-w-sm space-y-6">
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center font-semibold text-xl">
-              <img className="mr-1 h-8 w-8" src="https://exesfull.com/img/10.svg" alt="" />
-              Exesfull-ID
-            </div>
-          </div>
-
-          <Card className="overflow-hidden">
-            <CardContent className="space-y-6 p-6">
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-24 w-24 animate-pulse rounded-full bg-muted" />
-                <div className="space-y-2 text-center">
-                  <div className="mx-auto h-4 w-20 animate-pulse rounded bg-muted" />
-                  <div className="mx-auto h-6 w-40 animate-pulse rounded bg-muted" />
-                  <div className="mx-auto h-3 w-52 animate-pulse rounded bg-muted" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+  const shell = (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
       <div className="absolute right-6 top-6">
         <ThemeToggle />
@@ -415,9 +401,12 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden" data-loading={loading}>
           <CardContent className="space-y-6 p-6">
             <div className="flex flex-col items-center gap-4">
+              <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
+                Профиль
+              </p>
               <AvatarWithLoader
                 src={user?.img_url || undefined}
                 alt={user?.nickname || user?.login || "profile"}
@@ -429,35 +418,23 @@ export default function ProfilePage() {
                 }
               />
               <div className="text-center">
-                <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
-                  Профиль
-                </p>
-                <h1 className="mt-2 text-2xl font-semibold leading-tight">
+                <h1 className="text-2xl font-semibold leading-tight">
                   {user?.nickname || user?.login}
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Управляйте личными данными и настройками аккаунта.
-                </p>
               </div>
             </div>
 
             <Separator />
 
             <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  ФИО
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Имя, фамилия и отчество
-                </p>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="first_name">Имя</Label>
+                  <Label htmlFor="first_name">
+                    Имя <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="first_name"
+                    className="h-12 text-base"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     aria-invalid={!isValidName(firstName)}
@@ -465,9 +442,12 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="last_name">Фамилия</Label>
+                  <Label htmlFor="last_name">
+                    Фамилия <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="last_name"
+                    className="h-12 text-base"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     aria-invalid={!isValidName(lastName)}
@@ -478,6 +458,7 @@ export default function ProfilePage() {
                   <Label htmlFor="other_name">Отчество</Label>
                   <Input
                     id="other_name"
+                    className="h-12 text-base"
                     value={otherName}
                     onChange={(e) => setOtherName(e.target.value)}
                     aria-invalid={!isValidName(otherName)}
@@ -487,65 +468,81 @@ export default function ProfilePage() {
               </div>
 
               {nameDirty && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => saveSection("names")}
-                    disabled={!canSaveNames || savingSection === "names"}
-                    className="gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingSection === "names" ? "Сохраняем..." : "Сохранить"}
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => saveSection("names")}
+                  disabled={!canSaveNames || savingSection === "names"}
+                  className="h-11 w-full gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingSection === "names" ? "Сохраняем..." : "Сохранить"}
+                </Button>
               )}
             </section>
 
             <Separator />
 
             <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Никнейм и login
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Здесь вы можете указать, как вы хотели бы, чтобы мы вас называли: псевдоним,
-                  сокращение от имени или иное.
-                </p>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="nickname">Никнейм</Label>
+                  <Label htmlFor="nickname">
+                    Никнейм <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="nickname"
+                    className="h-12 text-base"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     aria-invalid={!isValidNickname(nickname)}
                     placeholder="Никнейм"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Никнейм - это имя, которое мы можем показывать вместо логина. Это может быть
+                    псевдоним, сокращение от имени или другое удобное обращение.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login">Login</Label>
+                  <Label htmlFor="login">
+                    Login <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="login"
+                    className={cn(
+                      "h-12 text-base",
+                      !loginCheck.same &&
+                        !loginFormatValid &&
+                        "border-red-500 focus-visible:ring-red-500/30",
+                      loginCheck.loading &&
+                        !loginCheck.same &&
+                        loginFormatValid &&
+                        "border-sky-400 focus-visible:ring-sky-400/30",
+                      loginCheck.valid &&
+                        loginCheck.available &&
+                        !loginCheck.same &&
+                        loginFormatValid &&
+                        "border-emerald-500 focus-visible:ring-emerald-500/30",
+                      !loginCheck.valid &&
+                        !loginCheck.same &&
+                        loginFormatValid &&
+                        "border-red-500 focus-visible:ring-red-500/30"
+                    )}
                     value={login}
                     onChange={(e) => {
                       setLogin(e.target.value);
-                      setLoginCheck((state) => ({ ...state, loading: true }));
+                      setLoginCheck((state) => ({ ...state, loading: true, same: false }));
                     }}
-                    aria-invalid={!loginCheck.valid}
-                    className={cn(
-                      loginCheck.loading && "border-sky-400 focus-visible:ring-sky-400/30",
-                      loginCheck.valid &&
-                        loginCheck.available &&
-                        "border-emerald-500 focus-visible:ring-emerald-500/30",
-                      !loginCheck.valid && "border-red-500 focus-visible:ring-red-500/30"
-                    )}
+                    aria-invalid={!loginCheck.same && (!loginCheck.valid || !loginFormatValid)}
                     placeholder="Логин"
                   />
                   <div className="text-xs">
-                    {loginCheck.loading ? (
+                    {loginCheck.same ? (
+                      <p className="text-muted-foreground">Текущий логин</p>
+                    ) : !loginFormatValid ? (
+                      <div className="space-y-1 text-red-600">
+                        <p>Логин может содержать только строчные латинские буквы, точку, подчёркивание и дефис</p>
+                        <p>Пробелы, заглавные буквы и неанглийские символы запрещены</p>
+                      </div>
+                    ) : loginCheck.loading ? (
                       <p className="text-muted-foreground">Проверяем доступность логина...</p>
                     ) : loginCheck.valid && loginCheck.available ? (
                       <p className="text-emerald-600">Логин доступен</p>
@@ -563,39 +560,28 @@ export default function ProfilePage() {
               </div>
 
               {credentialsDirty && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => saveSection("credentials")}
-                    disabled={!canSaveCredentials || savingSection === "credentials"}
-                    className="gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingSection === "credentials" ? "Сохраняем..." : "Сохранить"}
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => saveSection("credentials")}
+                  disabled={!canSaveCredentials || savingSection === "credentials"}
+                  className="h-11 w-full gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingSection === "credentials" ? "Сохраняем..." : "Сохранить"}
+                </Button>
               )}
             </section>
 
             <Separator />
 
             <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Контакты
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Телефон и почта
-                </p>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Телефон</Label>
-                  <Input value={user?.phone || ""} disabled />
+                  <Input className="h-12 text-base" value={user?.phone || ""} disabled />
                 </div>
                 <div className="space-y-2">
                   <Label>Почта</Label>
-                  <Input value={user?.email || ""} disabled />
+                  <Input className="h-12 text-base" value={user?.email || ""} disabled />
                 </div>
               </div>
             </section>
@@ -603,19 +589,11 @@ export default function ProfilePage() {
             <Separator />
 
             <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Дата рождения, страна и пол
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Заполняйте по желанию
-                </p>
-              </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="birthday">Дата рождения</Label>
+                  <Label>Дата рождения</Label>
                   <Input
+                    className="h-12 text-base"
                     id="birthday"
                     type="date"
                     value={birthday}
@@ -626,23 +604,23 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Страна</Label>
-                    <Select value={country} onValueChange={(value) => setCountry(value as CountryValue)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Не указано" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__NONE__">Не указано</SelectItem>
-                        <SelectItem value="RU">Россия</SelectItem>
-                        <SelectItem value="BY">Беларусь</SelectItem>
-                        <SelectItem value="KZ">Казахстан</SelectItem>
-                        <SelectItem value="-">Иная страна</SelectItem>
-                      </SelectContent>
+                  <Select value={country} onValueChange={(value) => setCountry(value as CountryValue)}>
+                    <SelectTrigger className="h-12 text-base">
+                      <SelectValue placeholder="Не указано" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__NONE__">Не указано</SelectItem>
+                      <SelectItem value="RU">Россия</SelectItem>
+                      <SelectItem value="BY">Беларусь</SelectItem>
+                      <SelectItem value="KZ">Казахстан</SelectItem>
+                      <SelectItem value="-">Иная страна</SelectItem>
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Пол</Label>
                   <Select value={sex} onValueChange={(value) => setSex(value as SexValue)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Не указано" />
                     </SelectTrigger>
                     <SelectContent>
@@ -655,31 +633,20 @@ export default function ProfilePage() {
               </div>
 
               {demographicsDirty && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => saveSection("demographics")}
-                    disabled={!canSaveDemographics || savingSection === "demographics"}
-                    className="gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingSection === "demographics" ? "Сохраняем..." : "Сохранить"}
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => saveSection("demographics")}
+                  disabled={!canSaveDemographics || savingSection === "demographics"}
+                  className="h-11 w-full gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingSection === "demographics" ? "Сохраняем..." : "Сохранить"}
+                </Button>
               )}
             </section>
 
             <Separator />
 
             <section className="space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Промо уведомления
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Включение маркетинговых уведомлений
-                </p>
-              </div>
-
               <div className="flex items-center gap-3 rounded-xl border border-border/60 p-4">
                 <Checkbox
                   checked={promoSendStatus}
@@ -687,41 +654,36 @@ export default function ProfilePage() {
                   id="promo_send_status"
                 />
                 <div className="space-y-1">
-                  <Label htmlFor="promo_send_status">Разрешить промо уведомления</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Мы будем отправлять только те сообщения, которые вы разрешите в настройках.
-                  </p>
+                  <Label htmlFor="promo_send_status">
+                    Разрешить промо уведомления
+                  </Label>
                 </div>
               </div>
 
               {promoDirty && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => saveSection("promo")}
-                    disabled={!canSavePromo || savingSection === "promo"}
-                    className="gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingSection === "promo" ? "Сохраняем..." : "Сохранить"}
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => saveSection("promo")}
+                  disabled={!canSavePromo || savingSection === "promo"}
+                  className="h-11 w-full gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingSection === "promo" ? "Сохраняем..." : "Сохранить"}
+                </Button>
               )}
             </section>
 
             <Separator />
 
             <div className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button variant="outline" className="gap-2" disabled>
-                  <ArrowRight className="h-4 w-4" />
-                  Сменить аккаунт
-                </Button>
+              <Button variant="outline" className="h-11 w-full gap-2" disabled>
+                <ArrowRight className="h-4 w-4" />
+                Сменить аккаунт
+              </Button>
 
-                <Button variant="destructive" className="gap-2" onClick={() => setLogoutOpen(true)}>
-                  <LogOut className="h-4 w-4" />
-                  Выйти
-                </Button>
-              </div>
+              <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
+                <LogOut className="h-4 w-4" />
+                Выйти
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -743,10 +705,10 @@ export default function ProfilePage() {
           </DialogHeader>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLogoutOpen(false)}>
+            <Button variant="outline" className="h-11" onClick={() => setLogoutOpen(false)}>
               Отмена
             </Button>
-            <Button variant="destructive" onClick={handleLogout} disabled={logoutLoading}>
+            <Button variant="destructive" className="h-11" onClick={handleLogout} disabled={logoutLoading}>
               {logoutLoading ? "Выходим..." : "Да, выйти"}
             </Button>
           </DialogFooter>
@@ -754,4 +716,5 @@ export default function ProfilePage() {
       </Dialog>
     </div>
   );
+  return shell;
 }

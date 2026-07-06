@@ -326,7 +326,12 @@ export default function LoginPage() {
           </Card>
         ) : currentUser ? (
           <Card className="overflow-hidden border-emerald-500/20 bg-emerald-500/8 shadow-lg shadow-emerald-500/10">
-            <CardContent className="flex items-center gap-3 p-4">
+            <CardContent className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  Привет, {currentUser.nickname || currentUser.login}
+                </p>
+              </div>
               <Button
                 className="h-10 shrink-0 gap-2 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
                 onClick={() => navigate('/my/profile')}
@@ -334,11 +339,6 @@ export default function LoginPage() {
                 <span className="font-medium">Профиль</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  Привет, {currentUser.nickname || currentUser.login}
-                </p>
-              </div>
             </CardContent>
           </Card>
         ) : null}
