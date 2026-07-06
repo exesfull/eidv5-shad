@@ -66,6 +66,7 @@ export default function WebAuthnPage() {
 
       const finishPayload = serializeGetCredential(credential as any);
       const finishForm = new URLSearchParams();
+      finishForm.set("challenge", String(startRes.data?.challenge || ""));
       finishForm.set("credential", JSON.stringify(finishPayload));
 
       const finishRes = await axios.post(FINISH_WEBAUTHN_LOGIN_ENDPOINT, finishForm);

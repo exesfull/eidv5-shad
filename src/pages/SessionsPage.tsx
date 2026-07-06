@@ -148,12 +148,6 @@ export default function SessionsPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
-      <div className="absolute left-6 top-6">
-        <Button className="h-11 gap-2" variant="outline" onClick={() => navigate("/my")}>
-          <ArrowLeft className="h-4 w-4" />
-          Назад
-        </Button>
-      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -168,6 +162,11 @@ export default function SessionsPage() {
 
         <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
           <CardContent className="space-y-5 p-5">
+            <Button variant="ghost" className="h-10 w-fit gap-2 px-2" onClick={() => navigate("/my")}>
+              <ArrowLeft className="h-4 w-4" />
+              Назад
+            </Button>
+
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">

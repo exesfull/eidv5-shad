@@ -285,6 +285,7 @@ export default function ProfilePage() {
     !compareSex(originalUser.current?.sex, sex);
 
   const promoDirty = !comparePromo(originalUser.current?.promo_send_status, promoSendStatus);
+  const themeDirty = lightMode !== (originalUser.current?.light_mode || "system");
 
   const canSaveNames =
     nameDirty && [firstName, lastName, otherName].every((value) => isValidName(value));
@@ -301,7 +302,7 @@ export default function ProfilePage() {
   const canSavePromo = promoDirty;
   const loginFormatValid = isLoginRuleCompliant(login);
 
-  const saveSection = async (section: string, nextLightMode?: string) => {
+  const saveSection = async (section: string) => {
     if (!user) return;
 
     setSavingSection(section);
@@ -333,7 +334,7 @@ export default function ProfilePage() {
       }
 
       if (section === "theme") {
-        form.set("light_mode", nextLightMode || lightMode);
+        form.set("light_mode", lightMode);
       }
 
       const res = await axios.post(UPDATE_PROFILE_ENDPOINT, form);
@@ -407,12 +408,6 @@ export default function ProfilePage() {
 
   const shell = (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
-      <div className="absolute left-6 top-6">
-        <Button className="h-11 gap-2" variant="outline" onClick={() => navigate("/my")}>
-          <ArrowLeft className="h-4 w-4" />
-          Назад
-        </Button>
-      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -427,6 +422,11 @@ export default function ProfilePage() {
 
         <Card className="overflow-hidden" data-loading={loading}>
           <CardContent className="space-y-6 p-6">
+            <Button variant="ghost" className="h-10 w-fit gap-2 px-2" onClick={() => navigate("/my")}>
+              <ArrowLeft className="h-4 w-4" />
+              Назад
+            </Button>
+
             <div className="flex flex-col items-center gap-4">
               <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
                 Профиль
@@ -700,15 +700,15 @@ export default function ProfilePage() {
 
             <section className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="light_mode">Тема</Label>
-                <Select
-                  value={lightMode}
-                  onValueChange={(value) => {
-                    const nextTheme = value as "system" | "light" | "dark";
-                    setLightMode(nextTheme);
-                    void saveSection("theme", nextTheme);
-                  }}
-                >
+                  <Label htmlFor="light_mode">Тема</Label>
+                  <Select
+                    value={lightMode}
+                    onValueChange={(value) => {
+                      if (value !== "system" && value !== "light" && value !== "dark") return;
+                      setLightMode(value);
+                      setTheme(value);
+                    }}
+                  >
                   <SelectTrigger id="light_mode" className="h-12 text-base">
                     <SelectValue placeholder="Системная" />
                   </SelectTrigger>
@@ -717,12 +717,19 @@ export default function ProfilePage() {
                     <SelectItem value="light">Светлая</SelectItem>
                     <SelectItem value="dark">Тёмная</SelectItem>
                   </SelectContent>
-                </Select>
-              </div>
+                  </Select>
+                </div>
 
-              {savingSection === "theme" && (
-                <p className="text-xs text-muted-foreground">Сохраняем тему...</p>
-              )}
+                {themeDirty && (
+                  <Button
+                    onClick={() => saveSection("theme")}
+                    disabled={savingSection === "theme"}
+                    className="h-11 w-full gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingSection === "theme" ? "Сохраняем..." : "Сохранить"}
+                  </Button>
+                )}
             </section>
 
             <Separator />

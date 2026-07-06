@@ -122,51 +122,55 @@ function PinCodeInput({
   return (
     <div className="flex justify-center gap-2">
       {cells.map((cell, index) => (
-        <Input
-          key={index}
-          ref={(node) => {
-            refs.current[index] = node;
-          }}
-          id={`call-code-${index}`}
-          type="text"
-          maxLength={1}
-          inputMode="numeric"
-          autoComplete="new-password"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          name={`security-pin-${index}`}
-          data-lpignore="true"
-          data-1p-ignore="true"
-          pattern="[0-9]*"
-          className="w-12 h-12 text-center text-lg"
-          value={cell ? "*" : ""}
-          disabled={disabled}
-          onFocus={() => refs.current[index]?.select()}
-          onChange={(event) => setCell(index, event.target.value)}
-          onKeyDown={(event) => {
-            if (disabled) return;
-            if (event.key === "Backspace") {
-              event.preventDefault();
-              if (cell) {
-                setCell(index, "");
-              } else if (index > 0) {
-                refs.current[index - 1]?.focus();
-                onChange(value.slice(0, -1));
+        <div key={index} className="relative">
+          <Input
+            ref={(node) => {
+              refs.current[index] = node;
+            }}
+            id={`call-code-${index}`}
+            type="text"
+            maxLength={1}
+            inputMode="numeric"
+            autoComplete="new-password"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            name={`security-pin-${index}`}
+            data-lpignore="true"
+            data-1p-ignore="true"
+            pattern="[0-9]*"
+            className="w-12 h-12 text-center text-lg text-transparent caret-transparent selection:bg-transparent selection:text-transparent"
+            value={cell}
+            disabled={disabled}
+            onFocus={() => refs.current[index]?.select()}
+            onChange={(event) => setCell(index, event.target.value)}
+            onKeyDown={(event) => {
+              if (disabled) return;
+              if (event.key === "Backspace") {
+                event.preventDefault();
+                if (cell) {
+                  setCell(index, "");
+                } else if (index > 0) {
+                  refs.current[index - 1]?.focus();
+                  onChange(value.slice(0, -1));
+                }
               }
-            }
-          }}
-          onPaste={(event) => {
-            if (disabled) return;
-            event.preventDefault();
-            const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-            if (!pasted) return;
-            onChange(pasted);
-            window.setTimeout(() => {
-              refs.current[Math.min(pasted.length, 3)]?.focus();
-            }, 0);
-          }}
-        />
+            }}
+            onPaste={(event) => {
+              if (disabled) return;
+              event.preventDefault();
+              const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+              if (!pasted) return;
+              onChange(pasted);
+              window.setTimeout(() => {
+                refs.current[Math.min(pasted.length, 3)]?.focus();
+              }, 0);
+            }}
+          />
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-lg font-medium text-foreground">
+            {cell ? "*" : ""}
+          </span>
+        </div>
       ))}
     </div>
   );
@@ -374,6 +378,7 @@ export default function SecurityPage() {
       const finishPayload = serializeCreateCredential(credential as any);
       const finishForm = new URLSearchParams();
       finishForm.set("device_name", deviceName.trim());
+      finishForm.set("challenge", String(startRes.data?.challenge || ""));
       finishForm.set("credential", JSON.stringify(finishPayload));
 
       const finishRes = await axios.post(FINISH_WEBAUTHN_REG_ENDPOINT, finishForm);
@@ -415,12 +420,6 @@ export default function SecurityPage() {
 
   const shell = (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
-      <div className="absolute left-6 top-6">
-        <Button variant="outline" className="h-11 gap-2" onClick={() => navigate("/my")}>
-          <ArrowLeft className="h-4 w-4" />
-          Назад
-        </Button>
-      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -445,6 +444,11 @@ export default function SecurityPage() {
         ) : (
           <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
             <CardContent className="space-y-5 p-5">
+              <Button variant="ghost" className="h-10 w-fit gap-2 px-2" onClick={() => navigate("/my")}>
+                <ArrowLeft className="h-4 w-4" />
+                Назад
+              </Button>
+
               <div className="flex flex-col items-center gap-3">
                 <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">
                   Безопасность
@@ -566,11 +570,11 @@ export default function SecurityPage() {
               <Separator />
 
               <section className="space-y-3">
-              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/security/sessions")}>
+                <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/security/sessions")}>
                   <Shield className="h-4 w-4" />
                   Активные сессии
-              </Button>
-            </section>
+                </Button>
+              </section>
 
               {error && (
                 <div className="rounded-2xl border border-red-500/20 bg-red-50/80 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-200">
