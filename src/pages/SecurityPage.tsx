@@ -10,9 +10,6 @@ import {
   Plus,
   Trash2,
   Shield,
-  Smartphone,
-  Tablet,
-  Laptop,
 } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
@@ -190,6 +187,7 @@ export default function SecurityPage() {
   const [loading, setLoading] = useState(true);
   const [savingPin, setSavingPin] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState<ProfileUser | null>(null);
@@ -204,7 +202,6 @@ export default function SecurityPage() {
   const [pinDeleteCode, setPinDeleteCode] = useState("");
   const [pinDeleteMessage, setPinDeleteMessage] = useState("");
   const [deviceOpen, setDeviceOpen] = useState(false);
-  const [deviceName, setDeviceName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SecurityCredential | null>(null);
 
   const loadSecurity = async () => {
@@ -263,6 +260,14 @@ export default function SecurityPage() {
       setError("");
     }
   }, [pinOpen]);
+
+  useEffect(() => {
+    if (!deviceOpen) {
+      setRegistering(false);
+      setRegisterSuccess(false);
+      setError("");
+    }
+  }, [deviceOpen]);
 
   const submitPin = async (pinValue: string, pinConfirmValue: string) => {
     if (pinValue.length !== 4 || pinConfirmValue.length !== 4 || pinValue !== pinConfirmValue) {
@@ -352,19 +357,12 @@ export default function SecurityPage() {
   };
 
   const startWebauthnRegistration = async () => {
-    if (!deviceName.trim()) {
-      setError("Укажите название устройства");
-      return;
-    }
-
     setRegistering(true);
+    setRegisterSuccess(false);
     setError("");
 
     try {
-      const startRes = await axios.post(
-        START_WEBAUTHN_REG_ENDPOINT,
-        new URLSearchParams({ device_name: deviceName.trim() })
-      );
+      const startRes = await axios.post(START_WEBAUTHN_REG_ENDPOINT, new URLSearchParams());
 
       if (!startRes.data?.status) {
         throw new Error(startRes.data?.error || "Не удалось начать регистрацию устройства");
@@ -385,7 +383,6 @@ export default function SecurityPage() {
 
       const finishPayload = serializeCreateCredential(credential as any);
       const finishForm = new URLSearchParams();
-      finishForm.set("device_name", deviceName.trim());
       finishForm.set("challenge", String(startRes.data?.challenge || ""));
       finishForm.set("credential", JSON.stringify(finishPayload));
 
@@ -400,9 +397,11 @@ export default function SecurityPage() {
         throw new Error(details ? `${baseError}\n${details}` : baseError);
       }
 
-      setDeviceOpen(false);
-      setDeviceName("");
+      setRegisterSuccess(true);
       await loadSecurity();
+      window.setTimeout(() => {
+        setDeviceOpen(false);
+      }, 3000);
     } catch (e) {
       setError(getErrorMessage(e, "Не удалось добавить устройство"));
     } finally {
@@ -540,11 +539,13 @@ export default function SecurityPage() {
 
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold">Биометрия</h2>
-                    <p className="text-xs text-muted-foreground">Ваши сохранённые WebAuthn-ключи</p>
-                  </div>
-                  <Button className="h-11 shrink-0 gap-2" onClick={() => setDeviceOpen(true)}>
+                <div>
+                  <h2 className="text-base font-semibold">Биометрия</h2>
+                </div>
+                  <Button className="h-11 shrink-0 gap-2" onClick={() => {
+                    setDeviceOpen(true);
+                    void startWebauthnRegistration();
+                  }}>
                     <Plus className="h-4 w-4" />
                     Добавить
                   </Button>
@@ -672,43 +673,21 @@ export default function SecurityPage() {
       <Dialog open={deviceOpen} onOpenChange={setDeviceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Добавить устройство</DialogTitle>
-            <DialogDescription>
-              Укажите имя устройства и продолжите регистрацию WebAuthn.
-            </DialogDescription>
+            <DialogTitle>Добавить</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="device_name">Название устройства</Label>
-              <Input
-                id="device_name"
-                className="h-11 text-base"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                placeholder="Телефон, планшет или ноутбук"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" className="h-11 gap-2" onClick={() => setDeviceName("Телефон")}>
-                <Smartphone className="h-4 w-4" />
-                Телефон
-              </Button>
-              <Button variant="outline" className="h-11 gap-2" onClick={() => setDeviceName("Планшет")}>
-                <Tablet className="h-4 w-4" />
-                Планшет
-              </Button>
-              <Button variant="outline" className="h-11 gap-2" onClick={() => setDeviceName("Ноутбук")}>
-                <Laptop className="h-4 w-4" />
-                Ноутбук
-              </Button>
-            </div>
-
-            {registering && (
+            {registering && !registerSuccess && (
               <div className="flex items-center gap-3 rounded-2xl border border-border/70 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Подтверждайте регистрацию на устройстве...
+                Создаём ключ, подтвердите биометрию на устройстве...
+              </div>
+            )}
+
+            {registerSuccess && (
+              <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                <Check className="h-4 w-4" />
+                Ключ успешно добавлен
               </div>
             )}
           </div>
@@ -716,10 +695,6 @@ export default function SecurityPage() {
           <DialogFooter>
             <Button variant="outline" className="h-11" onClick={() => setDeviceOpen(false)} disabled={registering}>
               Отмена
-            </Button>
-            <Button className="h-11 gap-2" onClick={() => void startWebauthnRegistration()} disabled={registering}>
-              {registering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-              Продолжить
             </Button>
           </DialogFooter>
         </DialogContent>
