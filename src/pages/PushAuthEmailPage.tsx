@@ -54,16 +54,15 @@ type PushEmailDelivery = {
 
 function readJson<T>(key: string): T | null {
   try {
-    const raw = sessionStorage.getItem(key) ?? localStorage.getItem(key);
+    const raw = sessionStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : null;
   } catch {
     return null;
   }
 }
 
-function writeJson(key: string, value: unknown, persistent = false) {
-  const storage = persistent ? localStorage : sessionStorage;
-  storage.setItem(key, JSON.stringify(value));
+function writeJson(key: string, value: unknown) {
+  sessionStorage.setItem(key, JSON.stringify(value));
 }
 
 function formatCountdown(seconds: number) {
@@ -98,10 +97,10 @@ export default function PushAuthEmailPage() {
 
   const persistState = (nextDelivery: PushEmailDelivery | null, nextUser: PendingAuthUser | null) => {
     if (nextUser) {
-      writeJson(PENDING_AUTH_STORAGE_KEY, nextUser, true);
+      writeJson(PENDING_AUTH_STORAGE_KEY, nextUser);
     }
     if (nextDelivery) {
-      writeJson(PUSH_EMAIL_STATE_KEY, nextDelivery, true);
+      writeJson(PUSH_EMAIL_STATE_KEY, nextDelivery);
     }
   };
 
@@ -155,7 +154,7 @@ export default function PushAuthEmailPage() {
           persistState(res.data.delivery, { ...storedUser, ...(res.data.user || {}) });
           hydrateCountdown(res.data.delivery?.resend_available_at);
           setCodeExpired(Boolean(res.data?.expired));
-          setInfo(res.data?.email_sent ? "Код уже отправлен на email" : "Состояние кода восстановлено");
+          setInfo("Код уже отправлен на email");
           setLoading(false);
           return;
         }
@@ -185,6 +184,37 @@ export default function PushAuthEmailPage() {
       setInfo("Мы отправили email для входа");
     } catch (err) {
       if (axios.isAxiosError(err)) {
+        if (err.response?.status === 404 && storedUser) {
+          sessionStorage.removeItem(PUSH_EMAIL_STATE_KEY);
+          const retryForm = new URLSearchParams();
+          if (storedUser.id) {
+            retryForm.set("user_id", String(storedUser.id));
+          } else if (storedUser.login) {
+            retryForm.set("login", storedUser.login);
+          } else if (storedUser.email) {
+            retryForm.set("login", storedUser.email);
+          }
+
+          try {
+            const retryRes = await axios.post(START_PUSH_EMAIL_ENDPOINT, retryForm, {
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+
+            if (retryRes.data?.status && retryRes.data?.delivery) {
+              setDelivery(retryRes.data.delivery);
+              setUser((prev) => ({ ...prev, ...(retryRes.data.user || {}) }));
+              persistState(retryRes.data.delivery, { ...storedUser, ...(retryRes.data.user || {}) });
+              hydrateCountdown(retryRes.data.delivery?.resend_available_at);
+              setCodeExpired(Boolean(retryRes.data?.expired));
+              setInfo("Мы отправили email для входа");
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // continue with visible error below
+          }
+        }
+
         setError(err.response?.data?.error || "Не удалось отправить email");
       } else if (err instanceof Error) {
         setError(err.message);
@@ -222,7 +252,7 @@ export default function PushAuthEmailPage() {
     setCode((prev) => {
       const next = [...prev];
       next[index] = nextValue;
-      writeJson(PUSH_EMAIL_CODE_KEY, next, false);
+      writeJson(PUSH_EMAIL_CODE_KEY, next);
       return next;
     });
 
@@ -254,7 +284,7 @@ export default function PushAuthEmailPage() {
       next[index] = digit;
     });
     setCode(next);
-    writeJson(PUSH_EMAIL_CODE_KEY, next, false);
+    writeJson(PUSH_EMAIL_CODE_KEY, next);
     const focusIndex = Math.min(pasted.length, 5);
     inputRefs.current[focusIndex]?.focus();
   };
@@ -287,7 +317,8 @@ export default function PushAuthEmailPage() {
       setCodeExpired(false);
       setInfo("Email-код принят, выполняем вход...");
       sessionStorage.removeItem(PUSH_EMAIL_CODE_KEY);
-      localStorage.removeItem(PUSH_EMAIL_STATE_KEY);
+      sessionStorage.removeItem(PUSH_EMAIL_STATE_KEY);
+      sessionStorage.removeItem(PENDING_AUTH_STORAGE_KEY);
     } catch (err) {
       setSuccess(false);
       if (axios.isAxiosError(err)) {
