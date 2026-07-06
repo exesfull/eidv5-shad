@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, LogOut, Save, Shield } from "lucide-react";
+import { ArrowLeft, LogOut, Save } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
@@ -734,21 +734,7 @@ export default function ProfilePage() {
 
             <Separator />
 
-            <section className="space-y-3">
-              <Button className="h-11 w-full gap-2" onClick={() => navigate("/my/security")}>
-                <Shield className="h-4 w-4" />
-                Безопасность
-              </Button>
-            </section>
-
-            <Separator />
-
             <div className="space-y-3">
-              <Button variant="outline" className="h-11 w-full gap-2" disabled>
-                <ArrowRight className="h-4 w-4" />
-                Сменить аккаунт
-              </Button>
-
               <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
                 <LogOut className="h-4 w-4" />
                 Выйти

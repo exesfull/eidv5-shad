@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { Shield, Monitor, User } from "lucide-react";
+import { ArrowRight, LogOut, Monitor, Shield, User } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
@@ -20,6 +21,7 @@ type MyUser = {
   login: string;
   nickname: string;
   img_url?: string | null;
+  light_mode?: "system" | "light" | "dark";
 };
 
 export default function MyPage() {
@@ -27,6 +29,20 @@ export default function MyPage() {
   const { setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MyUser | null>(null);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = async () => {
+    setLogoutLoading(true);
+
+    try {
+      await axios.post(eidAuthEndpoint("logout"), new URLSearchParams());
+      setLogoutOpen(false);
+      navigate("/", { replace: true });
+    } catch {
+      setLogoutLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -46,6 +62,7 @@ export default function MyPage() {
           login: res.data.user.login,
           nickname: res.data.user.nickname,
           img_url: res.data.user.img_url,
+          light_mode: res.data.user.light_mode,
         });
         if (res.data.user.light_mode) {
           setTheme(res.data.user.light_mode);
@@ -111,6 +128,16 @@ export default function MyPage() {
             </div>
 
             <div className="space-y-3">
+              <Button variant="outline" className="h-11 w-full gap-2" disabled>
+                <ArrowRight className="h-4 w-4" />
+                Сменить аккаунт
+              </Button>
+
+              <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setLogoutOpen(true)}>
+                <LogOut className="h-4 w-4" />
+                Выйти
+              </Button>
+
               <Button className="h-11 w-full gap-2" onClick={() => navigate("/my/profile")}>
                 <User className="h-4 w-4" />
                 Профиль
@@ -131,6 +158,26 @@ export default function MyPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Выйти из аккаунта?</DialogTitle>
+            <DialogDescription>
+              Мы отзовём текущий eidTD токен и вернём вас на страницу авторизации.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" className="h-11" onClick={() => setLogoutOpen(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" className="h-11" onClick={() => void handleLogout()} disabled={logoutLoading}>
+              {logoutLoading ? "Выходим..." : "Да, выйти"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
