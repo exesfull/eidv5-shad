@@ -16,8 +16,15 @@ function trimPadding(value: string) {
   return value.replace(/=+$/g, "");
 }
 
+function normalizeBase64Input(value: string) {
+  return value
+    .trim()
+    .replace(/=/g, "")
+    .replace(/[^A-Za-z0-9+/_-]/g, "");
+}
+
 export function base64UrlToUint8Array(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const normalized = normalizeBase64Input(value).replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
@@ -45,16 +52,16 @@ function normalizeCredentialOptions<T extends Record<string, any>>(options: T): 
 
 export function normalizeCreateOptions(options: any) {
   const next = structuredClone(options ?? {});
-  if (next.challenge) {
+  if (typeof next.challenge === "string") {
     next.challenge = base64UrlToUint8Array(next.challenge);
   }
-  if (next.user?.id) {
+  if (typeof next.user?.id === "string") {
     next.user.id = base64UrlToUint8Array(next.user.id);
   }
   if (Array.isArray(next.excludeCredentials)) {
     next.excludeCredentials = next.excludeCredentials.map((credential: any) => ({
       ...credential,
-      id: base64UrlToUint8Array(credential.id),
+      id: typeof credential.id === "string" ? base64UrlToUint8Array(credential.id) : credential.id,
     }));
   }
   return normalizeCredentialOptions(next);
@@ -62,13 +69,13 @@ export function normalizeCreateOptions(options: any) {
 
 export function normalizeGetOptions(options: any) {
   const next = structuredClone(options ?? {});
-  if (next.challenge) {
+  if (typeof next.challenge === "string") {
     next.challenge = base64UrlToUint8Array(next.challenge);
   }
   if (Array.isArray(next.allowCredentials)) {
     next.allowCredentials = next.allowCredentials.map((credential: any) => ({
       ...credential,
-      id: base64UrlToUint8Array(credential.id),
+      id: typeof credential.id === "string" ? base64UrlToUint8Array(credential.id) : credential.id,
     }));
   }
   return normalizeCredentialOptions(next);
@@ -102,4 +109,3 @@ export function serializeGetCredential(credential: PublicKeyCredentialLike) {
     },
   };
 }
-

@@ -105,6 +105,8 @@ function MaskedPinInput({
       aria-autocomplete="none"
       data-form-type="other"
       data-1p-ignore="true"
+      data-lpignore="true"
+      data-pslq="true"
       className="h-12 text-base tracking-[0.5em] text-center font-mono"
       value={"*".repeat(value.length)}
       placeholder={placeholder}
@@ -213,8 +215,8 @@ export default function SecurityPage() {
     }
   }, [pinOpen]);
 
-  const submitPin = async () => {
-    if (pinFirst.length !== 4 || pinSecond.length !== 4 || pinFirst !== pinSecond) {
+  const submitPin = async (pinValue: string, pinConfirmValue: string) => {
+    if (pinValue.length !== 4 || pinConfirmValue.length !== 4 || pinValue !== pinConfirmValue) {
       return;
     }
 
@@ -224,8 +226,8 @@ export default function SecurityPage() {
 
     try {
       const form = new URLSearchParams();
-      form.set("pin", pinFirst);
-      form.set("pin_confirm", pinSecond);
+      form.set("pin", pinValue);
+      form.set("pin_confirm", pinConfirmValue);
       const res = await axios.post(SAVE_PIN_ENDPOINT, form);
       if (!res.data?.status) {
         throw new Error(res.data?.error || "Не удалось сохранить PIN");
@@ -233,7 +235,9 @@ export default function SecurityPage() {
       setSecurity(res.data.security ?? null);
       setPinStatusMessage("PIN сохранён");
       setPinStep("first");
-      window.setTimeout(() => setPinOpen(false), 900);
+      window.setTimeout(() => {
+        setPinOpen(false);
+      }, 900);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить PIN");
       setPinStep("second");
@@ -254,7 +258,7 @@ export default function SecurityPage() {
     setPinSecond(next);
     setError("");
     if (next.length === 4 && pinFirst.length === 4 && next === pinFirst) {
-      void submitPin();
+      void submitPin(pinFirst, next);
     }
   };
 
@@ -453,6 +457,15 @@ export default function SecurityPage() {
 
               <Separator />
 
+              <section className="space-y-3">
+                <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/security/sessions")}>
+                  <Shield className="h-4 w-4" />
+                  Активные сессии
+                </Button>
+              </section>
+
+              <Separator />
+
               <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/profile")}>
                 <ArrowLeft className="h-4 w-4" />
                 Назад
@@ -480,23 +493,13 @@ export default function SecurityPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>PIN</Label>
-              <div className="relative">
-                <MaskedPinInput value={pinFirst} onChange={handlePinFirstChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
-                {pinFirst.length === 4 && (
-                  <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                )}
-              </div>
+              <MaskedPinInput value={pinFirst} onChange={handlePinFirstChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
             </div>
 
             {pinFirst.length === 4 && (
               <div className="space-y-2">
                 <Label>Повторите PIN</Label>
-                <div className="relative">
-                  <MaskedPinInput value={pinSecond} onChange={handlePinSecondChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
-                  {pinSecond.length === 4 && pinSecond === pinFirst && (
-                    <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                  )}
-                </div>
+                <MaskedPinInput value={pinSecond} onChange={handlePinSecondChange} placeholder="****" disabled={pinStep === "saving" || savingPin} />
               </div>
             )}
 
