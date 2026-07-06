@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
@@ -38,6 +39,7 @@ type CurrentUser = {
   nickname: string;
   first_name?: string | null;
   img_url?: string;
+  light_mode?: "system" | "light" | "dark";
 };
 
 const getPasswordErrorMessage = (status?: number, fallback?: string) => {
@@ -59,6 +61,7 @@ const getPasswordErrorMessage = (status?: number, fallback?: string) => {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setTheme } = useTheme();
 
   const [step, setStep] = useState<"login" | "password" | "call" | "success">("login");
   const [isQROpen, setIsQROpen] = useState(false);
@@ -111,6 +114,7 @@ export default function LoginPage() {
             nickname: res.data.user.nickname,
             first_name: res.data.user.first_name,
             img_url: res.data.user.img_url,
+            light_mode: res.data.user.light_mode,
           });
         } else {
           setCurrentUser(null);
@@ -128,6 +132,12 @@ export default function LoginPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.light_mode) {
+      setTheme(currentUser.light_mode);
+    }
+  }, [currentUser?.light_mode, setTheme]);
 
   // Phone mask formatting
   const formatPhone = (value: string) => {
@@ -187,6 +197,9 @@ export default function LoginPage() {
           ...res.data.user,
           name: res.data.user?.nickname ?? res.data.user?.login ?? "",
         });
+        if (res.data.user?.light_mode) {
+          setTheme(res.data.user.light_mode);
+        }
         // If phone mode, go to call step; if email mode, go to password step
         if (mode === "phone") {
           setStep("call");

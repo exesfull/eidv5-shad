@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { eidAuthEndpoint } from "@/lib/eid-api";
 
 const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
@@ -54,6 +55,7 @@ function SessionIcon({ type }: { type?: SessionItem["device_type"] }) {
 
 export default function SessionsPage() {
   const navigate = useNavigate();
+  const { setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [currentTokenId, setCurrentTokenId] = useState<number | null>(null);
@@ -75,6 +77,9 @@ export default function SessionsPage() {
     }
 
     setUserLabel(currentUserRes.data.user.nickname || currentUserRes.data.user.login || "");
+    if (currentUserRes.data.user.light_mode) {
+      setTheme(currentUserRes.data.user.light_mode);
+    }
     setSessions(Array.isArray(sessionsRes.data?.sessions) ? sessionsRes.data.sessions : []);
     setCurrentTokenId(Number(sessionsRes.data?.current_token_id || currentUserRes.data?.token?.id || 0));
   };
@@ -143,6 +148,12 @@ export default function SessionsPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+      <div className="absolute left-6 top-6">
+        <Button className="h-11 gap-2" variant="outline" onClick={() => navigate("/my")}>
+          <ArrowLeft className="h-4 w-4" />
+          Назад
+        </Button>
+      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -237,11 +248,6 @@ export default function SessionsPage() {
                 ))}
               </div>
             )}
-
-            <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/security")}>
-              <ArrowLeft className="h-4 w-4" />
-              Назад
-            </Button>
 
             {error && (
               <div className="rounded-2xl border border-red-500/20 bg-red-50/80 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-200">

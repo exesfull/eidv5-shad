@@ -8,6 +8,7 @@ import WebAuthnPage from '@/pages/WebAuthnPage'
 import ProfilePage from '@/pages/ProfilePage'
 import SecurityPage from '@/pages/SecurityPage'
 import SessionsPage from '@/pages/SessionsPage'
+import MyPage from '@/pages/MyPage'
 import { Navigate } from 'react-router-dom'
 
 export const router = createBrowserRouter([
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
   {
     path: '/my/profile',
     element: <ProfilePage />,
+  },
+  {
+    path: '/my',
+    element: <MyPage />,
   },
   {
     path: '/my/security',

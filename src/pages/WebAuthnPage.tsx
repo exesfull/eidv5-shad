@@ -19,6 +19,18 @@ import {
 const START_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("startWebauthnLogin");
 const FINISH_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("finishWebauthnLogin");
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.error || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
+}
+
 export default function WebAuthnPage() {
   const navigate = useNavigate();
   const [logoLoaded, setLogoLoaded] = useState(false);
@@ -69,6 +81,11 @@ export default function WebAuthnPage() {
     } catch (err) {
       setStatus("error");
       setShowFallback(true);
+
+      if (axios.isAxiosError(err)) {
+        setError(getErrorMessage(err, "Ошибка аутентификации"));
+        return;
+      }
 
       if (err instanceof Error) {
         if (err.name === "NotAllowedError") {

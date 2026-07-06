@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, LogOut, Save, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, LogOut, Save, Shield } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { eidAuthEndpoint } from "@/lib/eid-api";
 
@@ -53,6 +54,7 @@ type ProfileUser = {
   country?: string | null;
   promo_send_status?: boolean | number | null;
   img_url?: string | null;
+  light_mode?: "system" | "light" | "dark";
 };
 
 type LoginCheckState = {
@@ -131,6 +133,7 @@ function compareDate(a?: string | null, b?: string) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { setTheme } = useTheme();
   const originalUser = useRef<ProfileUser | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -157,6 +160,7 @@ export default function ProfilePage() {
   const [country, setCountry] = useState<CountryValue>("__NONE__");
   const [sex, setSex] = useState<SexValue>("1");
   const [promoSendStatus, setPromoSendStatus] = useState(false);
+  const [lightMode, setLightMode] = useState<"system" | "light" | "dark">("system");
 
   useEffect(() => {
     let mounted = true;
@@ -183,6 +187,10 @@ export default function ProfilePage() {
         setCountry(toSelectCountry(nextUser.country));
         setSex(toSelectSex(nextUser.sex));
         setPromoSendStatus(Boolean(nextUser.promo_send_status));
+        setLightMode(nextUser.light_mode || "system");
+        if (nextUser.light_mode) {
+          setTheme(nextUser.light_mode);
+        }
         setLoginCheck({
           loading: false,
           valid: true,
@@ -293,7 +301,7 @@ export default function ProfilePage() {
   const canSavePromo = promoDirty;
   const loginFormatValid = isLoginRuleCompliant(login);
 
-  const saveSection = async (section: string) => {
+  const saveSection = async (section: string, nextLightMode?: string) => {
     if (!user) return;
 
     setSavingSection(section);
@@ -322,6 +330,10 @@ export default function ProfilePage() {
 
       if (section === "promo") {
         form.set("promo_send_status", promoSendStatus ? "1" : "0");
+      }
+
+      if (section === "theme") {
+        form.set("light_mode", nextLightMode || lightMode);
       }
 
       const res = await axios.post(UPDATE_PROFILE_ENDPOINT, form);
@@ -353,6 +365,12 @@ export default function ProfilePage() {
 
         if (section === "promo") {
           setPromoSendStatus(Boolean(nextUser.promo_send_status));
+        }
+
+        if (section === "theme") {
+          const resolvedTheme = nextUser.light_mode || "system";
+          setLightMode(resolvedTheme);
+          setTheme(resolvedTheme);
         }
       }
     } catch (e) {
@@ -389,6 +407,12 @@ export default function ProfilePage() {
 
   const shell = (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+      <div className="absolute left-6 top-6">
+        <Button className="h-11 gap-2" variant="outline" onClick={() => navigate("/my")}>
+          <ArrowLeft className="h-4 w-4" />
+          Назад
+        </Button>
+      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -669,6 +693,35 @@ export default function ProfilePage() {
                   <Save className="h-4 w-4" />
                   {savingSection === "promo" ? "Сохраняем..." : "Сохранить"}
                 </Button>
+              )}
+            </section>
+
+            <Separator />
+
+            <section className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="light_mode">Тема</Label>
+                <Select
+                  value={lightMode}
+                  onValueChange={(value) => {
+                    const nextTheme = value as "system" | "light" | "dark";
+                    setLightMode(nextTheme);
+                    void saveSection("theme", nextTheme);
+                  }}
+                >
+                  <SelectTrigger id="light_mode" className="h-12 text-base">
+                    <SelectValue placeholder="Системная" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">Системная</SelectItem>
+                    <SelectItem value="light">Светлая</SelectItem>
+                    <SelectItem value="dark">Тёмная</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {savingSection === "theme" && (
+                <p className="text-xs text-muted-foreground">Сохраняем тему...</p>
               )}
             </section>
 

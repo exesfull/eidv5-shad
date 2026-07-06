@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { eidAuthEndpoint } from "@/lib/eid-api";
 import {
   normalizeCreateOptions,
@@ -42,6 +43,7 @@ type ProfileUser = {
   login: string;
   nickname: string;
   img_url?: string | null;
+  light_mode?: "system" | "light" | "dark";
 };
 
 type SecurityCredential = {
@@ -75,6 +77,18 @@ function formatDateTime(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.error || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
 }
 
 function PinCodeInput({
@@ -117,10 +131,16 @@ function PinCodeInput({
           type="text"
           maxLength={1}
           inputMode="numeric"
-          autoComplete="off"
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
           spellCheck={false}
+          name={`security-pin-${index}`}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          pattern="[0-9]*"
           className="w-12 h-12 text-center text-lg"
-          value={cell}
+          value={cell ? "*" : ""}
           disabled={disabled}
           onFocus={() => refs.current[index]?.select()}
           onChange={(event) => setCell(index, event.target.value)}
@@ -154,6 +174,7 @@ function PinCodeInput({
 
 export default function SecurityPage() {
   const navigate = useNavigate();
+  const { setTheme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [savingPin, setSavingPin] = useState(false);
   const [registering, setRegistering] = useState(false);
@@ -190,7 +211,11 @@ export default function SecurityPage() {
       login: currentUserRes.data.user.login,
       nickname: currentUserRes.data.user.nickname,
       img_url: currentUserRes.data.user.img_url,
+      light_mode: currentUserRes.data.user.light_mode,
     });
+    if (currentUserRes.data.user.light_mode) {
+      setTheme(currentUserRes.data.user.light_mode);
+    }
     setSecurity(securityRes.data?.security ?? { credentials: [] });
   };
 
@@ -232,9 +257,9 @@ export default function SecurityPage() {
       return;
     }
 
-    setSavingPin(true);
-    setPinStep("saving");
-    setError("");
+      setSavingPin(true);
+      setPinStep("saving");
+      setError("");
 
     try {
       const form = new URLSearchParams();
@@ -251,7 +276,7 @@ export default function SecurityPage() {
         setPinOpen(false);
       }, 900);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сохранить PIN");
+      setError(getErrorMessage(e, "Не удалось сохранить PIN"));
       setPinStep("second");
     } finally {
       setSavingPin(false);
@@ -278,7 +303,7 @@ export default function SecurityPage() {
         setPinOpen(false);
       }, 900);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось удалить PIN");
+      setError(getErrorMessage(e, "Не удалось удалить PIN"));
       setPinStep("first");
     } finally {
       setSavingPin(false);
@@ -296,8 +321,12 @@ export default function SecurityPage() {
     const next = value.replace(/\D/g, "").slice(0, 4);
     setPinSecond(next);
     setError("");
-    if (next.length === 4 && pinFirst.length === 4 && next === pinFirst) {
-      void submitPin(pinFirst, next);
+    if (next.length === 4 && pinFirst.length === 4) {
+      if (next === pinFirst) {
+        void submitPin(pinFirst, next);
+      } else {
+        setError("PIN и подтверждение PIN не совпадают");
+      }
     }
   };
 
@@ -324,6 +353,10 @@ export default function SecurityPage() {
         START_WEBAUTHN_REG_ENDPOINT,
         new URLSearchParams({ device_name: deviceName.trim() })
       );
+
+      if (!startRes.data?.status) {
+        throw new Error(startRes.data?.error || "Не удалось начать регистрацию устройства");
+      }
 
       const options = normalizeCreateOptions(startRes.data?.publicKey);
       if (!window.PublicKeyCredential) {
@@ -352,7 +385,7 @@ export default function SecurityPage() {
       setDeviceName("");
       await loadSecurity();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось добавить устройство");
+      setError(getErrorMessage(e, "Не удалось добавить устройство"));
     } finally {
       setRegistering(false);
     }
@@ -374,7 +407,7 @@ export default function SecurityPage() {
       setDeleteTarget(null);
       await loadSecurity();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось удалить ключ");
+      setError(getErrorMessage(e, "Не удалось удалить ключ"));
     } finally {
       setDeleting(false);
     }
@@ -382,6 +415,12 @@ export default function SecurityPage() {
 
   const shell = (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-muted p-6">
+      <div className="absolute left-6 top-6">
+        <Button variant="outline" className="h-11 gap-2" onClick={() => navigate("/my")}>
+          <ArrowLeft className="h-4 w-4" />
+          Назад
+        </Button>
+      </div>
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
@@ -527,18 +566,11 @@ export default function SecurityPage() {
               <Separator />
 
               <section className="space-y-3">
-                <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/security/sessions")}>
+              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/security/sessions")}>
                   <Shield className="h-4 w-4" />
                   Активные сессии
-                </Button>
-              </section>
-
-              <Separator />
-
-              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/profile")}>
-                <ArrowLeft className="h-4 w-4" />
-                Назад
               </Button>
+            </section>
 
               {error && (
                 <div className="rounded-2xl border border-red-500/20 bg-red-50/80 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-200">
@@ -587,6 +619,12 @@ export default function SecurityPage() {
               <div className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {pinMode === "set" ? "Секундочку, сохраняем PIN..." : "Секундочку, удаляем PIN..."}
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-2xl border border-red-500/20 bg-red-50/80 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-200">
+                {error}
               </div>
             )}
 
