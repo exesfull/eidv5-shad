@@ -327,11 +327,9 @@ export default function LoginPage() {
         ) : currentUser ? (
           <Card className="overflow-hidden border-emerald-500/20 bg-emerald-500/8 shadow-lg shadow-emerald-500/10">
             <CardContent className="flex items-center justify-between gap-3 p-4">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">
-                  Привет, {currentUser.nickname || currentUser.login}
-                </p>
-              </div>
+              <p className="min-w-0 truncate text-sm font-medium text-foreground">
+                {currentUser.nickname || currentUser.login}
+              </p>
               <Button
                 className="h-10 shrink-0 gap-2 rounded-xl bg-emerald-500 px-4 text-white hover:bg-emerald-600"
                 onClick={() => navigate('/my/profile')}

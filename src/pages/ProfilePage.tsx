@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, LogOut, Save } from "lucide-react";
+import { ArrowRight, LogOut, Save, Shield } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
@@ -539,8 +539,8 @@ export default function ProfilePage() {
                       <p className="text-muted-foreground">Текущий логин</p>
                     ) : !loginFormatValid ? (
                       <div className="space-y-1 text-red-600">
-                        <p>Логин может содержать только строчные латинские буквы, точку, подчёркивание и дефис</p>
-                        <p>Пробелы, заглавные буквы и неанглийские символы запрещены</p>
+                        <p>Логин может содержать только символы a-z, точку, подчёркивание и дефис</p>
+                        <p>Заглавные буквы, пробелы и неанглийские символы запрещены</p>
                       </div>
                     ) : loginCheck.loading ? (
                       <p className="text-muted-foreground">Проверяем доступность логина...</p>
@@ -674,8 +674,17 @@ export default function ProfilePage() {
 
             <Separator />
 
+            <section className="space-y-3">
+              <Button className="h-11 w-full gap-2" onClick={() => navigate("/my/security")}>
+                <Shield className="h-4 w-4" />
+                Безопасность
+              </Button>
+            </section>
+
+            <Separator />
+
             <div className="space-y-3">
-              <Button variant="outline" className="h-11 w-full gap-2" disabled>
+              <Button className="h-11 w-full gap-2" disabled>
                 <ArrowRight className="h-4 w-4" />
                 Сменить аккаунт
               </Button>
