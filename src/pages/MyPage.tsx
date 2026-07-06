@@ -128,7 +128,7 @@ export default function MyPage() {
             </div>
 
             <div className="space-y-3">
-              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my")}>
+              <Button className="h-11 w-full gap-2" variant="outline" onClick={() => navigate("/my/profile")}>
                 <User className="h-4 w-4" />
                 Профиль
               </Button>
