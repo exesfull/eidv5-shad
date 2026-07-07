@@ -15,6 +15,7 @@ import { useTheme } from "@/components/theme-provider";
 import { eidAuthEndpoint, eidOa2Endpoint } from "@/lib/eid-api";
 
 const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
+const REMEMBER_RETURN_TO_ENDPOINT = eidAuthEndpoint("rememberReturnTo");
 const AUTHORIZE_DATA_ENDPOINT = eidOa2Endpoint("getAuthorizeRequestData");
 const APPROVE_ENDPOINT = eidOa2Endpoint("approveAuthorizeRequest");
 const DENY_ENDPOINT = eidOa2Endpoint("denyAuthorizeRequest");
@@ -98,8 +99,23 @@ export default function Oa2AuthorizePage() {
   const [data, setData] = useState<Oa2AuthorizeData | null>(null);
 
   const currentUrl = getCurrentAppUrl();
-  const redirectToAuth = () => {
-    navigate(`/?return_to=${encodeURIComponent(currentUrl)}`, { replace: true });
+  const redirectToAuth = async () => {
+    try {
+      const form = new URLSearchParams();
+      form.set("return_to", currentUrl);
+      const res = await axios.post(REMEMBER_RETURN_TO_ENDPOINT, form, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      if (res.data?.auth_url) {
+        window.location.href = res.data.auth_url;
+        return;
+      }
+    } catch {
+      // fall through to a direct auth navigation if cookie endpoint fails
+    }
+
+    window.location.href = "https://id.exesfull.com/oauth?r=1";
   };
 
   useEffect(() => {
@@ -111,7 +127,7 @@ export default function Oa2AuthorizePage() {
         if (!mounted) return;
 
         if (!currentRes.data?.authorized || !currentRes.data?.user) {
-          redirectToAuth();
+          void redirectToAuth();
           return;
         }
 
@@ -141,12 +157,7 @@ export default function Oa2AuthorizePage() {
         setData(authorizeRes.data as Oa2AuthorizeData);
       } catch (nextError) {
         if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-          redirectToAuth();
-          return;
-        }
-
-        if (getReadableError(nextError, "").toLowerCase().includes("user not authorized")) {
-          redirectToAuth();
+          void redirectToAuth();
           return;
         }
 
@@ -191,7 +202,7 @@ export default function Oa2AuthorizePage() {
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
       if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-        redirectToAuth();
+        void redirectToAuth();
         return;
       }
 
@@ -217,7 +228,7 @@ export default function Oa2AuthorizePage() {
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
       if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-        redirectToAuth();
+        void redirectToAuth();
         return;
       }
 
