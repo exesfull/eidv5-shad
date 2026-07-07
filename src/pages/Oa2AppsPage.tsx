@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Eye, EyeOff, Loader2, Plus, Save, Trash2 } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ type Oa2App = {
   id: number;
   slug: string;
   client_id: string;
+  client_secret?: string | null;
   name: string;
   description?: string | null;
   image_url?: string | null;
@@ -100,6 +101,8 @@ export default function Oa2AppsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
   const [detailForm, setDetailForm] = useState<DetailForm>(emptyDetailForm);
+  const [showSecret, setShowSecret] = useState(false);
+  const [copiedField, setCopiedField] = useState<"client_id" | "client_secret" | null>(null);
 
   const isDetailPage = Boolean(slug);
 
@@ -139,6 +142,8 @@ export default function Oa2AppsPage() {
       }
 
       setApp(nextApp);
+      setShowSecret(false);
+      setCopiedField(null);
       setDetailForm(
         nextApp
           ? {
@@ -176,6 +181,19 @@ export default function Oa2AppsPage() {
   const canCreate = normalizeText(createForm.name) !== "";
   const canSave = Boolean(app && detailChanged);
 
+  const copyValue = async (field: "client_id" | "client_secret") => {
+    const value = field === "client_id" ? app?.client_id : app?.client_secret;
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(null), 1000);
+    } catch {
+      setCopiedField(null);
+    }
+  };
+
   const submitCreate = async () => {
     if (!canCreate) return;
 
@@ -200,6 +218,7 @@ export default function Oa2AppsPage() {
       setApps((prev) => [nextApp, ...prev.filter((item) => item.slug !== nextApp.slug)]);
       setCreateOpen(false);
       setCreateForm(emptyCreateForm);
+      setShowSecret(false);
       navigate(openDetailPath(nextApp.slug), { replace: true });
     } catch (nextError) {
       setError(getErrorMessage(nextError, "Не удалось создать приложение"));
@@ -233,6 +252,7 @@ export default function Oa2AppsPage() {
 
       const nextApp = res.data.app as Oa2App;
       setApp(nextApp);
+      setShowSecret(false);
       setDetailForm({
         name: normalizeText(nextApp.name),
         description: normalizeText(nextApp.description),
@@ -266,7 +286,7 @@ export default function Oa2AppsPage() {
       }
 
       setDeleteOpen(false);
-      navigate("/my/dev/apps/oa2", { replace: true });
+      navigate("/my/dev/apps/oa2/", { replace: true });
       await load();
     } catch (nextError) {
       setError(getErrorMessage(nextError, "Не удалось удалить приложение"));
@@ -292,16 +312,10 @@ export default function Oa2AppsPage() {
         <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
           <CardContent className="space-y-5 p-6">
             <div className="flex items-center justify-between gap-3">
-              <Button variant="ghost" className="h-9 gap-2 px-2" onClick={() => navigate("/my")}>
+              <Button variant="ghost" className="h-9 gap-2 px-2" onClick={() => navigate("/my/dev/apps/oa2/", { replace: true })}>
                 <ArrowLeft className="h-4 w-4" />
                 Назад
               </Button>
-
-              {isDetailPage && app ? (
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                  {app.slug}
-                </span>
-              ) : null}
             </div>
 
             {error ? (
@@ -332,32 +346,49 @@ export default function Oa2AppsPage() {
                   <div className="space-y-1">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">OAuth2 приложение</p>
                     <h1 className="text-2xl font-semibold leading-tight">{app?.name || "Приложение"}</h1>
-                    <p className="text-sm text-muted-foreground">Slug: {app?.slug}</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <Input
-                    value={detailForm.name}
-                    onChange={(event) => setDetailForm((prev) => ({ ...prev, name: event.target.value }))}
-                    placeholder="Название"
-                  />
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">
+                      Название <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      value={detailForm.name}
+                      maxLength={50}
+                      onChange={(event) => setDetailForm((prev) => ({ ...prev, name: event.target.value }))}
+                      placeholder="Название"
+                    />
+                    <p className="text-xs text-muted-foreground">Обязательное поле, не более 50 символов.</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">
+                      URL основного сайта <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      value={detailForm.main_site_url}
+                      onChange={(event) => setDetailForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
+                      placeholder="URL основного сайта"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">
+                      URL политики конфиденциальности <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      value={detailForm.policy_url}
+                      onChange={(event) => setDetailForm((prev) => ({ ...prev, policy_url: event.target.value }))}
+                      placeholder="URL политики конфиденциальности"
+                    />
+                  </div>
                   <textarea
                     value={detailForm.description}
                     onChange={(event) => setDetailForm((prev) => ({ ...prev, description: event.target.value }))}
                     placeholder="Описание"
                     rows={4}
                     className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
-                  />
-                  <Input
-                    value={detailForm.main_site_url}
-                    onChange={(event) => setDetailForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
-                    placeholder="URL основного сайта"
-                  />
-                  <Input
-                    value={detailForm.policy_url}
-                    onChange={(event) => setDetailForm((prev) => ({ ...prev, policy_url: event.target.value }))}
-                    placeholder="URL политики конфиденциальности"
                   />
                   <textarea
                     value={detailForm.redirect_uris}
@@ -367,6 +398,48 @@ export default function Oa2AppsPage() {
                     className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
                   />
                 </div>
+
+                {app ? (
+                  <div className="space-y-3 rounded-2xl border border-border/60 p-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium">Client ID</span>
+                        <Button variant="ghost" size="sm" className="h-8 gap-2 px-2" onClick={() => void copyValue("client_id")}>
+                          <Copy className="h-3.5 w-3.5" />
+                          {copiedField === "client_id" ? "Скопировано" : "Копировать"}
+                        </Button>
+                      </div>
+                      <Input value={app.client_id} readOnly className="font-mono text-xs opacity-80" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium">Client Secret</span>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" className="h-8 gap-2 px-2" onClick={() => setShowSecret((value) => !value)}>
+                            {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            {showSecret ? "Скрыть" : "Показать"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-2 px-2"
+                            onClick={() => void copyValue("client_secret")}
+                            disabled={!showSecret}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                            {copiedField === "client_secret" ? "Скопировано" : "Копировать"}
+                          </Button>
+                        </div>
+                      </div>
+                      <Input
+                        value={showSecret ? (app.client_secret || "") : "••••••••••••••••••••••••••••••••"}
+                        readOnly
+                        className="font-mono text-xs opacity-80"
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3">
                   <Button className="h-11 w-full gap-2" onClick={() => void saveDetail()} disabled={!canSave || saving}>
@@ -437,12 +510,22 @@ export default function Oa2AppsPage() {
           </DialogHeader>
 
           <div className="space-y-3">
-            <Input
-              value={createForm.name}
-              onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
-              placeholder="Название"
-            />
             <div className="space-y-1">
+              <label className="text-sm font-medium">
+                Название <span className="text-destructive">*</span>
+              </label>
+              <Input
+                value={createForm.name}
+                maxLength={50}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Название"
+              />
+              <p className="text-xs text-muted-foreground">Обязательное поле, не более 50 символов.</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">
+                URL основного сайта <span className="text-destructive">*</span>
+              </label>
               <Input
                 value={createForm.main_site_url}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
@@ -451,6 +534,9 @@ export default function Oa2AppsPage() {
               <p className="text-xs text-muted-foreground">Ссылка на сам сайт приложения, куда пользователь попадает вне авторизации.</p>
             </div>
             <div className="space-y-1">
+              <label className="text-sm font-medium">
+                URL политики конфиденциальности <span className="text-destructive">*</span>
+              </label>
               <Input
                 value={createForm.policy_url}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, policy_url: event.target.value }))}
@@ -492,4 +578,3 @@ export default function Oa2AppsPage() {
     </div>
   );
 }
-
