@@ -98,6 +98,9 @@ export default function Oa2AuthorizePage() {
   const [data, setData] = useState<Oa2AuthorizeData | null>(null);
 
   const currentUrl = getCurrentAppUrl();
+  const redirectToAuth = () => {
+    navigate(`/?return_to=${encodeURIComponent(currentUrl)}`, { replace: true });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -108,7 +111,7 @@ export default function Oa2AuthorizePage() {
         if (!mounted) return;
 
         if (!currentRes.data?.authorized || !currentRes.data?.user) {
-          navigate(`/?return_to=${encodeURIComponent(currentUrl)}`, { replace: true });
+          redirectToAuth();
           return;
         }
 
@@ -137,6 +140,16 @@ export default function Oa2AuthorizePage() {
 
         setData(authorizeRes.data as Oa2AuthorizeData);
       } catch (nextError) {
+        if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
+          redirectToAuth();
+          return;
+        }
+
+        if (getReadableError(nextError, "").toLowerCase().includes("user not authorized")) {
+          redirectToAuth();
+          return;
+        }
+
         setError(getReadableError(nextError, "Не удалось открыть страницу подтверждения"));
       } finally {
         if (mounted) setLoading(false);
@@ -177,6 +190,11 @@ export default function Oa2AuthorizePage() {
 
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
+      if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
+        redirectToAuth();
+        return;
+      }
+
       setError(getReadableError(nextError, "Не удалось подтвердить доступ"));
     } finally {
       setProcessing(false);
@@ -198,6 +216,11 @@ export default function Oa2AuthorizePage() {
 
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
+      if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
+        redirectToAuth();
+        return;
+      }
+
       setError(getReadableError(nextError, "Не удалось отклонить доступ"));
     } finally {
       setProcessing(false);
