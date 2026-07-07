@@ -21,6 +21,7 @@ const VERIFY_PUSH_EMAIL_ENDPOINT = eidAuthEndpoint("verifyPushEmailAuth");
 const PENDING_AUTH_STORAGE_KEY = "eidPendingAuthUser";
 const PUSH_EMAIL_STATE_KEY = "eidPushEmailAuthState";
 const PUSH_EMAIL_CODE_KEY = "eidPushEmailCode";
+const AUTH_RETURN_TO_KEY = "eidAuthReturnTo";
 const REDIRECT_URL = "https://id.exesfull.com/oauth/api/esm/v5/eid/auth/redirect";
 
 type PendingAuthUser = {
@@ -240,8 +241,24 @@ export default function PushAuthEmailPage() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("return_to") || params.get("rto") || params.get("next");
+
+    if (returnTo) {
+      sessionStorage.setItem(AUTH_RETURN_TO_KEY, returnTo);
+    }
+  }, []);
+
+  useEffect(() => {
     if (success) {
       redirectTimer.current = window.setTimeout(() => {
+        const redirectTarget = sessionStorage.getItem(AUTH_RETURN_TO_KEY);
+        if (redirectTarget) {
+          sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
+          window.location.href = redirectTarget;
+          return;
+        }
+
         window.location.href = REDIRECT_URL;
       }, 1500);
     }

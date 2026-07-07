@@ -15,6 +15,7 @@ import { eidAuthEndpoint } from "@/lib/eid-api";
 const GET_ACCOUNTS_ENDPOINT = eidAuthEndpoint("getAccounts");
 const SWITCH_ACCOUNT_ENDPOINT = eidAuthEndpoint("switchAccount");
 const AFTER_LOGIN_REDIRECT_KEY = "eidAfterLoginRedirect";
+const AUTH_RETURN_TO_KEY = "eidAuthReturnTo";
 
 type Account = {
   token_id: number;
@@ -38,6 +39,14 @@ export default function SwitchAccountPage() {
   const [switchingId, setSwitchingId] = useState<number | null>(null);
   const [addingAccount, setAddingAccount] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [returnTo, setReturnTo] = useState("/my");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextReturn = params.get("return_to") || params.get("rto") || params.get("next") || "/my";
+    setReturnTo(nextReturn);
+    sessionStorage.setItem(AUTH_RETURN_TO_KEY, nextReturn);
+  }, []);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -78,6 +87,9 @@ export default function SwitchAccountPage() {
       }
 
       setAccounts((res.data.accounts || []) as Account[]);
+      if (returnTo !== "/swich-accoutn") {
+        navigate(returnTo, { replace: true });
+      }
     } catch {
       await loadAccounts();
     } finally {
@@ -88,7 +100,7 @@ export default function SwitchAccountPage() {
   const handleAddAccount = () => {
     sessionStorage.setItem(AFTER_LOGIN_REDIRECT_KEY, "/swich-accoutn");
     setAddingAccount(true);
-    navigate("/");
+    navigate("/?return_to=/swich-accoutn");
   };
 
   const primaryTokenId = accounts.find((account) => account.is_default)?.token_id;
@@ -109,15 +121,11 @@ export default function SwitchAccountPage() {
 
         <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
           <CardContent className="space-y-4 p-6">
-            <div className="flex items-center justify-between gap-3">
+            <div className="space-y-3 text-center">
               <div>
                 <p className="text-lg font-semibold">Смена аккаунта</p>
                 <p className="text-sm text-muted-foreground">Выберите активный аккаунт или добавьте новый</p>
               </div>
-              <Button variant="outline" className="h-10 gap-2" onClick={handleAddAccount} disabled={addingAccount}>
-                <Plus className="h-4 w-4" />
-                Добавить аккаунт
-              </Button>
             </div>
 
             {loading ? (
@@ -188,6 +196,11 @@ export default function SwitchAccountPage() {
                 Аккаунты не найдены. Добавьте первый аккаунт.
               </div>
             )}
+
+            <Button variant="outline" className="h-10 w-full gap-2" onClick={handleAddAccount} disabled={addingAccount}>
+              <Plus className="h-4 w-4" />
+              Добавить аккаунт
+            </Button>
           </CardContent>
         </Card>
       </div>

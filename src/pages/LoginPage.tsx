@@ -26,6 +26,7 @@ const START_WEBAUTHN_LOGIN_ENDPOINT = eidAuthEndpoint("startWebauthnLogin");
 const GET_QR_URL_ENDPOINT = eidAuthEndpoint("getQrUrl");
 const PENDING_AUTH_STORAGE_KEY = "eidPendingAuthUser";
 const AFTER_LOGIN_REDIRECT_KEY = "eidAfterLoginRedirect";
+const AUTH_RETURN_TO_KEY = "eidAuthReturnTo";
 
 type AuthUser = {
   id?: number;
@@ -143,9 +144,11 @@ export default function LoginPage() {
     if (step === "login") loginRef.current?.focus();
     if (step === "password") passwordRef.current?.focus();
     if (step === "success") {
-      const redirectTarget = sessionStorage.getItem(AFTER_LOGIN_REDIRECT_KEY);
+      const redirectTarget =
+        sessionStorage.getItem(AUTH_RETURN_TO_KEY) || sessionStorage.getItem(AFTER_LOGIN_REDIRECT_KEY);
       setTimeout(() => {
         if (redirectTarget) {
+          sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
           sessionStorage.removeItem(AFTER_LOGIN_REDIRECT_KEY);
           window.location.href = redirectTarget;
           return;
@@ -188,6 +191,15 @@ export default function LoginPage() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("return_to") || params.get("rto") || params.get("next");
+
+    if (returnTo) {
+      sessionStorage.setItem(AUTH_RETURN_TO_KEY, returnTo);
+    }
   }, []);
 
   useEffect(() => {
