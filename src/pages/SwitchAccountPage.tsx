@@ -62,7 +62,12 @@ export default function SwitchAccountPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const nextReturn = params.get("return_to") || params.get("rto") || params.get("next") || "/my";
+    const nextReturn =
+      params.get("return_to") ||
+      params.get("rto") ||
+      params.get("next") ||
+      sessionStorage.getItem(AUTH_RETURN_TO_KEY) ||
+      "/my";
     setReturnTo(nextReturn);
     sessionStorage.setItem(AUTH_RETURN_TO_KEY, nextReturn);
   }, []);
@@ -107,6 +112,7 @@ export default function SwitchAccountPage() {
 
       setAccounts((res.data.accounts || []) as Account[]);
       if (returnTo !== "/swich-accoutn") {
+        sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
         navigate(normalizeNavigatePath(returnTo), { replace: true });
       }
     } catch {
