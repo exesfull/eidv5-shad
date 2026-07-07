@@ -99,23 +99,8 @@ export default function Oa2AuthorizePage() {
   const [data, setData] = useState<Oa2AuthorizeData | null>(null);
 
   const currentUrl = getCurrentAppUrl();
-  const redirectToAuth = async () => {
-    try {
-      const form = new URLSearchParams();
-      form.set("return_to", currentUrl);
-      const res = await axios.post(REMEMBER_RETURN_TO_ENDPOINT, form, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
-
-      if (res.data?.auth_url) {
-        window.location.href = res.data.auth_url;
-        return;
-      }
-    } catch {
-      // fall through to a direct auth navigation if cookie endpoint fails
-    }
-
-    window.location.href = "https://id.exesfull.com/oauth?r=1";
+  const redirectToAuth = () => {
+    window.location.href = `${REMEMBER_RETURN_TO_ENDPOINT}?return_to=${encodeURIComponent(currentUrl)}`;
   };
 
   useEffect(() => {
@@ -127,7 +112,7 @@ export default function Oa2AuthorizePage() {
         if (!mounted) return;
 
         if (!currentRes.data?.authorized || !currentRes.data?.user) {
-          void redirectToAuth();
+          redirectToAuth();
           return;
         }
 
@@ -157,7 +142,7 @@ export default function Oa2AuthorizePage() {
         setData(authorizeRes.data as Oa2AuthorizeData);
       } catch (nextError) {
         if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-          void redirectToAuth();
+          redirectToAuth();
           return;
         }
 
@@ -202,7 +187,7 @@ export default function Oa2AuthorizePage() {
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
       if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-        void redirectToAuth();
+        redirectToAuth();
         return;
       }
 
@@ -228,7 +213,7 @@ export default function Oa2AuthorizePage() {
       window.location.href = res.data.redirect_url;
     } catch (nextError) {
       if (axios.isAxiosError(nextError) && nextError.response?.status === 401) {
-        void redirectToAuth();
+        redirectToAuth();
         return;
       }
 
