@@ -36,6 +36,8 @@ const normalizeNavigatePath = (value: string) => {
   }
 };
 
+const isAbsoluteUrl = (value: string) => /^[a-z]+:\/\//i.test(value);
+
 type Account = {
   token_id: number;
   user_id: number;
@@ -113,6 +115,11 @@ export default function SwitchAccountPage() {
       setAccounts((res.data.accounts || []) as Account[]);
       if (returnTo !== "/swich-accoutn") {
         sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
+        if (isAbsoluteUrl(returnTo)) {
+          window.location.href = returnTo;
+          return;
+        }
+
         navigate(normalizeNavigatePath(returnTo), { replace: true });
       }
     } catch {
