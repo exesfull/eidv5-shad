@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Check, Loader2, Shield, X } from "lucide-react";
+import { ArrowRight, Check, Loader2, X } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
@@ -266,9 +266,6 @@ export default function Oa2AuthorizePage() {
                 <div className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-muted-foreground">Запрашиваемый доступ</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {data.request.scope}
-                    </span>
                   </div>
 
                   <div className="space-y-2">
@@ -285,24 +282,36 @@ export default function Oa2AuthorizePage() {
 
                   <Separator />
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Сайт</span>
-                      <span className="truncate text-right">{data.app.main_site_url || "Не указан"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Политика</span>
-                      <span className="truncate text-right">{data.app.policy_url || "Не указана"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Redirect URI</span>
-                      <span className="truncate text-right">{data.request.redirect_uri}</span>
-                    </div>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    {data.app.main_site_url ? (
+                      <a
+                        href={data.app.main_site_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        Сайт приложения
+                      </a>
+                    ) : null}
+                    {data.app.policy_url ? (
+                      <a
+                        href={data.app.policy_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        Политика
+                      </a>
+                    ) : null}
                   </div>
                 </div>
 
                 {user ? (
-                  <div className="rounded-2xl border border-border/60 p-4">
+                  <button
+                    type="button"
+                    onClick={handleSwitchAccount}
+                    className="w-full rounded-2xl border border-border/60 p-4 text-left transition-colors hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  >
                     <div className="flex items-center gap-3">
                       <AvatarWithLoader
                         src={user.img_url || undefined}
@@ -319,7 +328,7 @@ export default function Oa2AuthorizePage() {
                         <p className="truncate font-medium">{user.nickname || user.login}</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ) : null}
 
                 {error ? (
@@ -332,7 +341,7 @@ export default function Oa2AuthorizePage() {
 
                 <div className="space-y-3">
                   <Button className="h-11 w-full gap-2" onClick={() => void handleAllow()} disabled={processing}>
-                    {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                    {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     Разрешить
                   </Button>
 
