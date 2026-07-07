@@ -3,17 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Copy, Eye, EyeOff, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
 
 import { AvatarWithLoader } from "@/components/ui/avatar-with-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
+import { buildLoginUrlWithReturnTo, currentLocationReturnTo } from "@/lib/auth-return";
 import { eidAuthEndpoint, eidOa2Endpoint } from "@/lib/eid-api";
 
 const CURRENT_USER_ENDPOINT = eidAuthEndpoint("getCurrentUser");
@@ -27,7 +27,6 @@ type Oa2App = {
   id: number;
   slug: string;
   client_id: string;
-  client_secret?: string | null;
   name: string;
   description?: string | null;
   image_url?: string | null;
@@ -37,8 +36,7 @@ type Oa2App = {
   is_active?: boolean;
 };
 
-type FormState = {
-  slug: string;
+type DetailForm = {
   name: string;
   description: string;
   main_site_url: string;
@@ -46,13 +44,24 @@ type FormState = {
   redirect_uris: string;
 };
 
-const initialForm: FormState = {
-  slug: "",
+type CreateForm = {
+  name: string;
+  main_site_url: string;
+  policy_url: string;
+};
+
+const emptyDetailForm: DetailForm = {
   name: "",
   description: "",
   main_site_url: "",
   policy_url: "",
   redirect_uris: "",
+};
+
+const emptyCreateForm: CreateForm = {
+  name: "",
+  main_site_url: "",
+  policy_url: "",
 };
 
 const normalizeText = (value?: string | null) => (value ?? "").trim();
@@ -66,13 +75,15 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.error || fallback;
   }
+
   if (error instanceof Error) {
     return error.message || fallback;
   }
+
   return fallback;
 };
 
-const appUrl = (slug?: string) => (slug ? `/my/dev/apps/oa2/${slug}` : "/my/dev/apps/oa2");
+const openDetailPath = (slug: string) => `/my/dev/apps/oa2/${slug}`;
 
 export default function Oa2AppsPage() {
   const navigate = useNavigate();
@@ -85,20 +96,21 @@ export default function Oa2AppsPage() {
   const [error, setError] = useState("");
   const [apps, setApps] = useState<Oa2App[]>([]);
   const [app, setApp] = useState<Oa2App | null>(null);
-  const [showSecret, setShowSecret] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [copiedField, setCopiedField] = useState<"client_id" | "client_secret" | null>(null);
-  const [form, setForm] = useState<FormState>(initialForm);
+  const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm);
+  const [detailForm, setDetailForm] = useState<DetailForm>(emptyDetailForm);
 
   const isDetailPage = Boolean(slug);
 
   const load = async () => {
     setLoading(true);
+    setError("");
 
     try {
       const currentUserRes = await axios.post(CURRENT_USER_ENDPOINT, new URLSearchParams());
       if (!currentUserRes.data?.authorized || !currentUserRes.data?.user) {
-        navigate("/", { replace: true });
+        navigate(buildLoginUrlWithReturnTo(currentLocationReturnTo()), { replace: true });
         return;
       }
 
@@ -116,38 +128,28 @@ export default function Oa2AppsPage() {
 
       let nextApp: Oa2App | null = null;
       if (slug) {
-        const found = nextApps.find((item) => item.slug === slug);
-        if (found) {
-          nextApp = found;
-        } else {
-          try {
-            const appRes = await axios.post(GET_APP_ENDPOINT, new URLSearchParams({ slug }));
-            if (appRes.data?.status && appRes.data?.app) {
-              nextApp = appRes.data.app as Oa2App;
-            }
-          } catch {
-            nextApp = null;
+        nextApp = nextApps.find((item) => item.slug === slug) || null;
+
+        if (!nextApp) {
+          const appRes = await axios.post(GET_APP_ENDPOINT, new URLSearchParams({ slug }));
+          if (appRes.data?.status && appRes.data?.app) {
+            nextApp = appRes.data.app as Oa2App;
           }
         }
       }
 
       setApp(nextApp);
-      setForm(
+      setDetailForm(
         nextApp
           ? {
-              slug: nextApp.slug,
               name: normalizeText(nextApp.name),
               description: normalizeText(nextApp.description),
               main_site_url: normalizeText(nextApp.main_site_url),
               policy_url: normalizeText(nextApp.policy_url),
               redirect_uris: normalizeRedirectUris(nextApp.redirect_uris),
             }
-          : {
-              ...initialForm,
-              slug: slug || "",
-            }
+          : emptyDetailForm
       );
-      setShowSecret(false);
     } catch (nextError) {
       setError(getErrorMessage(nextError, "Не удалось загрузить приложения"));
     } finally {
@@ -159,61 +161,69 @@ export default function Oa2AppsPage() {
     void load();
   }, [slug]);
 
-  const hasChanges = useMemo(() => {
-    if (!app) {
-      return (
-        normalizeText(form.slug) !== "" ||
-        normalizeText(form.name) !== "" ||
-        normalizeText(form.description) !== "" ||
-        normalizeText(form.main_site_url) !== "" ||
-        normalizeText(form.policy_url) !== "" ||
-        normalizeText(form.redirect_uris) !== ""
-      );
-    }
+  const detailChanged = useMemo(() => {
+    if (!app) return false;
 
     return (
-      normalizeText(form.name) !== normalizeText(app.name) ||
-      normalizeText(form.description) !== normalizeText(app.description) ||
-      normalizeText(form.main_site_url) !== normalizeText(app.main_site_url) ||
-      normalizeText(form.policy_url) !== normalizeText(app.policy_url) ||
-      normalizeText(form.redirect_uris) !== normalizeRedirectUris(app.redirect_uris)
+      normalizeText(detailForm.name) !== normalizeText(app.name) ||
+      normalizeText(detailForm.description) !== normalizeText(app.description) ||
+      normalizeText(detailForm.main_site_url) !== normalizeText(app.main_site_url) ||
+      normalizeText(detailForm.policy_url) !== normalizeText(app.policy_url) ||
+      normalizeText(detailForm.redirect_uris) !== normalizeRedirectUris(app.redirect_uris)
     );
-  }, [app, form.description, form.main_site_url, form.name, form.policy_url, form.redirect_uris, form.slug]);
+  }, [app, detailForm.description, detailForm.main_site_url, detailForm.name, detailForm.policy_url, detailForm.redirect_uris]);
 
-  const canSave = useMemo(() => {
-    if (!form.slug || !form.name) return false;
-    return hasChanges || !app;
-  }, [app, form.name, form.slug, hasChanges]);
+  const canCreate = normalizeText(createForm.name) !== "";
+  const canSave = Boolean(app && detailChanged);
 
-  const copyValue = async (field: "client_id" | "client_secret") => {
-    const value = field === "client_id" ? app?.client_id : app?.client_secret;
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      window.setTimeout(() => setCopiedField(null), 900);
-    } catch {
-      setCopiedField(null);
-    }
-  };
-
-  const saveApp = async () => {
-    if (!canSave) return;
+  const submitCreate = async () => {
+    if (!canCreate) return;
 
     setSaving(true);
     setError("");
 
     try {
-      const formData = new URLSearchParams();
-      formData.set("slug", normalizeText(form.slug));
-      formData.set("name", normalizeText(form.name));
-      formData.set("description", normalizeText(form.description));
-      formData.set("main_site_url", normalizeText(form.main_site_url));
-      formData.set("policy_url", normalizeText(form.policy_url));
-      formData.set("redirect_uris", normalizeText(form.redirect_uris));
+      const body = new URLSearchParams();
+      body.set("name", normalizeText(createForm.name));
+      body.set("main_site_url", normalizeText(createForm.main_site_url));
+      body.set("policy_url", normalizeText(createForm.policy_url));
 
-      const endpoint = app ? UPDATE_APP_ENDPOINT : CREATE_APP_ENDPOINT;
-      const res = await axios.post(endpoint, formData, {
+      const res = await axios.post(CREATE_APP_ENDPOINT, body, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      if (!res.data?.status || !res.data?.app?.slug) {
+        throw new Error(res.data?.error || "Не удалось создать приложение");
+      }
+
+      const nextApp = res.data.app as Oa2App;
+      setApps((prev) => [nextApp, ...prev.filter((item) => item.slug !== nextApp.slug)]);
+      setCreateOpen(false);
+      setCreateForm(emptyCreateForm);
+      navigate(openDetailPath(nextApp.slug), { replace: true });
+    } catch (nextError) {
+      setError(getErrorMessage(nextError, "Не удалось создать приложение"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDetail = async () => {
+    if (!app || !canSave) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const body = new URLSearchParams();
+      body.set("slug", app.slug);
+      body.set("name", normalizeText(detailForm.name));
+      body.set("description", normalizeText(detailForm.description));
+      body.set("main_site_url", normalizeText(detailForm.main_site_url));
+      body.set("policy_url", normalizeText(detailForm.policy_url));
+      body.set("redirect_uris", normalizeText(detailForm.redirect_uris));
+
+      const res = await axios.post(UPDATE_APP_ENDPOINT, body, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
@@ -223,21 +233,14 @@ export default function Oa2AppsPage() {
 
       const nextApp = res.data.app as Oa2App;
       setApp(nextApp);
-      setForm({
-        slug: nextApp.slug,
+      setDetailForm({
         name: normalizeText(nextApp.name),
         description: normalizeText(nextApp.description),
         main_site_url: normalizeText(nextApp.main_site_url),
         policy_url: normalizeText(nextApp.policy_url),
         redirect_uris: normalizeRedirectUris(nextApp.redirect_uris),
       });
-      setApps((prev) => {
-        const filtered = prev.filter((item) => item.slug !== nextApp.slug);
-        return [nextApp, ...filtered];
-      });
-      if (!app) {
-        navigate(appUrl(nextApp.slug), { replace: true });
-      }
+      setApps((prev) => [nextApp, ...prev.filter((item) => item.slug !== nextApp.slug)]);
     } catch (nextError) {
       setError(getErrorMessage(nextError, "Не удалось сохранить приложение"));
     } finally {
@@ -245,16 +248,16 @@ export default function Oa2AppsPage() {
     }
   };
 
-  const deleteApp = async () => {
+  const deleteDetail = async () => {
     if (!app) return;
 
     setDeleting(true);
     setError("");
 
     try {
-      const formData = new URLSearchParams();
-      formData.set("slug", app.slug);
-      const res = await axios.post(DELETE_APP_ENDPOINT, formData, {
+      const body = new URLSearchParams();
+      body.set("slug", app.slug);
+      const res = await axios.post(DELETE_APP_ENDPOINT, body, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
@@ -287,12 +290,13 @@ export default function Oa2AppsPage() {
         </div>
 
         <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
-          <CardContent className="space-y-4 p-6">
+          <CardContent className="space-y-5 p-6">
             <div className="flex items-center justify-between gap-3">
               <Button variant="ghost" className="h-9 gap-2 px-2" onClick={() => navigate("/my")}>
                 <ArrowLeft className="h-4 w-4" />
                 Назад
               </Button>
+
               {isDetailPage && app ? (
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                   {app.slug}
@@ -300,22 +304,20 @@ export default function Oa2AppsPage() {
               ) : null}
             </div>
 
+            {error ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+
             {loading ? (
               <div className="space-y-3">
-                <Skeleton className="mx-auto h-20 w-20 rounded-full" />
-                <Skeleton className="h-5 w-40 mx-auto" />
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
-                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
               </div>
-            ) : (
-              <>
-                {error ? (
-                  <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                    {error}
-                  </div>
-                ) : null}
-
+            ) : isDetailPage ? (
+              <div className="space-y-5">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <AvatarWithLoader
                     src={app?.image_url || undefined}
@@ -323,189 +325,165 @@ export default function Oa2AppsPage() {
                     size="xl"
                     fallback={
                       <span className="text-2xl font-semibold text-muted-foreground">
-                        {(app?.name || form.name || form.slug || "A")[0]?.toUpperCase() || "A"}
+                        {(app?.name || "A")[0]?.toUpperCase() || "A"}
                       </span>
                     }
                   />
                   <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      {isDetailPage && app ? "OAuth2 приложение" : "Создание приложения"}
-                    </p>
-                    <h1 className="text-2xl font-semibold leading-tight">
-                      {app?.name || form.name || "Новый клиент"}
-                    </h1>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">OAuth2 приложение</p>
+                    <h1 className="text-2xl font-semibold leading-tight">{app?.name || "Приложение"}</h1>
+                    <p className="text-sm text-muted-foreground">Slug: {app?.slug}</p>
                   </div>
                 </div>
 
-                {!isDetailPage ? (
-                  <div className="space-y-3">
-                    <Input
-                      value={form.slug}
-                      onChange={(event) => setForm((prev) => ({ ...prev, slug: event.target.value }))}
-                      placeholder="slug"
-                    />
-                    <Input
-                      value={form.name}
-                      onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                      placeholder="Название"
-                    />
-                    <Input
-                      value={form.main_site_url}
-                      onChange={(event) => setForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
-                      placeholder="Сайт"
-                    />
-                    <Input
-                      value={form.policy_url}
-                      onChange={(event) => setForm((prev) => ({ ...prev, policy_url: event.target.value }))}
-                      placeholder="Политика"
-                    />
-                    <textarea
-                      value={form.redirect_uris}
-                      onChange={(event) => setForm((prev) => ({ ...prev, redirect_uris: event.target.value }))}
-                      placeholder="Redirect URI, по одному на строку"
-                      rows={4}
-                      className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Input value={form.slug} readOnly className="opacity-80" />
-                      <Input
-                        value={form.name}
-                        onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                        placeholder="Название"
-                      />
-                      <Input
-                        value={form.main_site_url}
-                        onChange={(event) => setForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
-                        placeholder="Сайт"
-                      />
-                      <Input
-                        value={form.policy_url}
-                        onChange={(event) => setForm((prev) => ({ ...prev, policy_url: event.target.value }))}
-                        placeholder="Политика"
-                      />
-                      <textarea
-                        value={form.redirect_uris}
-                        onChange={(event) => setForm((prev) => ({ ...prev, redirect_uris: event.target.value }))}
-                        placeholder="Redirect URI, по одному на строку"
-                        rows={4}
-                        className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
-                      />
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-3">
+                  <Input
+                    value={detailForm.name}
+                    onChange={(event) => setDetailForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Название"
+                  />
+                  <textarea
+                    value={detailForm.description}
+                    onChange={(event) => setDetailForm((prev) => ({ ...prev, description: event.target.value }))}
+                    placeholder="Описание"
+                    rows={4}
+                    className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
+                  />
+                  <Input
+                    value={detailForm.main_site_url}
+                    onChange={(event) => setDetailForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
+                    placeholder="URL основного сайта"
+                  />
+                  <Input
+                    value={detailForm.policy_url}
+                    onChange={(event) => setDetailForm((prev) => ({ ...prev, policy_url: event.target.value }))}
+                    placeholder="URL политики конфиденциальности"
+                  />
+                  <textarea
+                    value={detailForm.redirect_uris}
+                    onChange={(event) => setDetailForm((prev) => ({ ...prev, redirect_uris: event.target.value }))}
+                    placeholder="Redirect URI, по одному на строку"
+                    rows={4}
+                    className="min-h-28 w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20 dark:bg-input/30"
+                  />
+                </div>
 
-                {isDetailPage && app ? (
-                  <>
-                    <Separator />
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-muted-foreground">Client ID</span>
-                          <Button variant="ghost" size="sm" className="h-8 gap-2 px-2" onClick={() => void copyValue("client_id")}>
-                            <Copy className="h-3.5 w-3.5" />
-                            {copiedField === "client_id" ? "Скопировано" : "Копировать"}
-                          </Button>
-                        </div>
-                        <Input value={app.client_id} readOnly className="font-mono text-xs opacity-80" />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm text-muted-foreground">Client Secret</span>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-2 px-2"
-                              onClick={() => setShowSecret((value) => !value)}
-                            >
-                              {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                              {showSecret ? "Скрыть" : "Посмотреть"}
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-8 gap-2 px-2" onClick={() => void copyValue("client_secret")}>
-                              <Copy className="h-3.5 w-3.5" />
-                              {copiedField === "client_secret" ? "Скопировано" : "Копировать"}
-                            </Button>
-                          </div>
-                        </div>
-                        <Input
-                          value={showSecret ? (app.client_secret || "") : "••••••••••••••••••••••••••••••••"}
-                          readOnly
-                          className="font-mono text-xs opacity-80"
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                {isDetailPage ? (
-                  <div className="space-y-3">
-                    <Button className="h-11 w-full gap-2" onClick={() => void saveApp()} disabled={!canSave || saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      Сохранить
-                    </Button>
-                    <Button variant="outline" className="h-11 w-full gap-2" onClick={() => setDeleteOpen(true)} disabled={saving}>
-                      <Trash2 className="h-4 w-4" />
-                      Удалить
-                    </Button>
+                <div className="space-y-3">
+                  <Button className="h-11 w-full gap-2" onClick={() => void saveDetail()} disabled={!canSave || saving}>
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Сохранить
+                  </Button>
+                  <Button variant="outline" className="h-11 w-full gap-2" onClick={() => setDeleteOpen(true)} disabled={saving}>
+                    <Trash2 className="h-4 w-4" />
+                    Удалить
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold">Приложения</p>
+                    <p className="text-sm text-muted-foreground">Список OAuth2-клиентов</p>
                   </div>
-                ) : (
-                  <Button className="h-11 w-full gap-2" onClick={() => void saveApp()} disabled={!canSave || saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  <Button className="h-10 gap-2" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4" />
                     Создать
                   </Button>
+                </div>
+
+                {apps.length > 0 ? (
+                  <div className="space-y-2">
+                    {apps.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => navigate(openDetailPath(item.slug))}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-border/70 p-3 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <AvatarWithLoader
+                          src={item.image_url || undefined}
+                          alt={item.name}
+                          size="lg"
+                          fallback={
+                            <span className="text-lg font-semibold text-muted-foreground">
+                              {item.name?.[0]?.toUpperCase() || "A"}
+                            </span>
+                          }
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{item.name}</p>
+                          <p className="truncate text-sm text-muted-foreground">{item.slug}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
+                    Пока нет приложений. Создайте первое через кнопку выше.
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
-
-        {!loading && !isDetailPage && apps.length > 0 ? (
-          <Card className="overflow-hidden border-border/60 bg-background/80 backdrop-blur">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-sm font-medium">Ваши приложения</p>
-              <div className="space-y-2">
-                {apps.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => navigate(appUrl(item.slug))}
-                    className="flex w-full items-center gap-3 rounded-xl border border-border/70 px-3 py-2 text-left transition-colors hover:bg-muted/50"
-                  >
-                    <AvatarWithLoader
-                      src={item.image_url || undefined}
-                      alt={item.name}
-                      size="md"
-                      fallback={<span className="text-sm font-semibold text-muted-foreground">{item.name?.[0]?.toUpperCase() || "A"}</span>}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{item.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{item.slug}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создать приложение</DialogTitle>
+            <DialogDescription>Заполните название и адреса. Redirect URL можно добавить позже.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Input
+              value={createForm.name}
+              onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="Название"
+            />
+            <div className="space-y-1">
+              <Input
+                value={createForm.main_site_url}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, main_site_url: event.target.value }))}
+                placeholder="URL основного сайта"
+              />
+              <p className="text-xs text-muted-foreground">Ссылка на сам сайт приложения, куда пользователь попадает вне авторизации.</p>
+            </div>
+            <div className="space-y-1">
+              <Input
+                value={createForm.policy_url}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, policy_url: event.target.value }))}
+                placeholder="URL политики конфиденциальности"
+              />
+              <p className="text-xs text-muted-foreground">Ссылка на правила обработки данных и политику конфиденциальности.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" className="h-11" onClick={() => setCreateOpen(false)}>
+              Отмена
+            </Button>
+            <Button className="h-11" onClick={() => void submitCreate()} disabled={!canCreate || saving}>
+              {saving ? "Создаём..." : "Создать"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Удалить приложение?</DialogTitle>
             <DialogDescription>
-              {app ? `Мы удалим ${app.name} и все связанные ключи доступа.` : "Мы удалим приложение."}
+              {app ? `Мы удалим ${app.name} и все связанные с ним данные.` : "Мы удалим приложение."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" className="h-11" onClick={() => setDeleteOpen(false)}>
               Отмена
             </Button>
-            <Button variant="destructive" className="h-11" onClick={() => void deleteApp()} disabled={deleting}>
+            <Button variant="destructive" className="h-11" onClick={() => void deleteDetail()} disabled={deleting}>
               {deleting ? "Удаляем..." : "Да, удалить"}
             </Button>
           </DialogFooter>
@@ -514,3 +492,4 @@ export default function Oa2AppsPage() {
     </div>
   );
 }
+
