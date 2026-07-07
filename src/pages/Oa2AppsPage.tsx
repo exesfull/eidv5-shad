@@ -22,6 +22,7 @@ const GET_APP_ENDPOINT = eidOa2Endpoint("getMyApp");
 const CREATE_APP_ENDPOINT = eidOa2Endpoint("createMyApp");
 const UPDATE_APP_ENDPOINT = eidOa2Endpoint("updateMyApp");
 const DELETE_APP_ENDPOINT = eidOa2Endpoint("deleteMyApp");
+const DEFAULT_APP_IMAGE_URL = "https://img.icons8.com/?size=256&id=102562&format=png";
 
 type Oa2App = {
   id: number;
@@ -132,12 +133,9 @@ export default function Oa2AppsPage() {
       let nextApp: Oa2App | null = null;
       if (slug) {
         nextApp = nextApps.find((item) => item.slug === slug) || null;
-
-        if (!nextApp) {
-          const appRes = await axios.post(GET_APP_ENDPOINT, new URLSearchParams({ slug }));
-          if (appRes.data?.status && appRes.data?.app) {
-            nextApp = appRes.data.app as Oa2App;
-          }
+        const appRes = await axios.post(GET_APP_ENDPOINT, new URLSearchParams({ slug }));
+        if (appRes.data?.status && appRes.data?.app) {
+          nextApp = appRes.data.app as Oa2App;
         }
       }
 
@@ -333,8 +331,8 @@ export default function Oa2AppsPage() {
             ) : isDetailPage ? (
               <div className="space-y-5">
                 <div className="flex flex-col items-center gap-3 text-center">
-                  <AvatarWithLoader
-                    src={app?.image_url || undefined}
+                    <AvatarWithLoader
+                    src={app?.image_url || DEFAULT_APP_IMAGE_URL}
                     alt={app?.name || "OAuth2 app"}
                     size="xl"
                     fallback={
@@ -475,7 +473,7 @@ export default function Oa2AppsPage() {
                         className="flex w-full items-center gap-3 rounded-2xl border border-border/70 p-3 text-left transition-colors hover:bg-muted/50"
                       >
                         <AvatarWithLoader
-                          src={item.image_url || undefined}
+                          src={item.image_url || DEFAULT_APP_IMAGE_URL}
                           alt={item.name}
                           size="lg"
                           fallback={
