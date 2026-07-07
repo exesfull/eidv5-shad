@@ -96,6 +96,14 @@ export default function LoginPage() {
   const [qrValue, setQrValue] = useState("");
   const [qrStamp, setQrStamp] = useState(0);
 
+  const resolveRedirectTarget = (value: string) => {
+    if (!value) return value;
+    if (/^[a-z]+:\/\//i.test(value)) return value;
+    if (value.startsWith("/oauth")) return value;
+    if (value.startsWith("/")) return `/oauth${value}`;
+    return `/oauth/${value}`;
+  };
+
   // Call code state
   const [callCode, setCallCode] = useState(["", "", "", ""]);
   const [callMade, setCallMade] = useState(false);
@@ -150,7 +158,7 @@ export default function LoginPage() {
         if (redirectTarget) {
           sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
           sessionStorage.removeItem(AFTER_LOGIN_REDIRECT_KEY);
-          window.location.href = redirectTarget;
+          window.location.href = resolveRedirectTarget(redirectTarget);
           return;
         }
 

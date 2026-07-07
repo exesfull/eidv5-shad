@@ -255,7 +255,7 @@ export default function PushAuthEmailPage() {
         const redirectTarget = sessionStorage.getItem(AUTH_RETURN_TO_KEY);
         if (redirectTarget) {
           sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
-          window.location.href = redirectTarget;
+          window.location.href = resolveRedirectTarget(redirectTarget);
           return;
         }
 
@@ -557,3 +557,10 @@ export default function PushAuthEmailPage() {
     </div>
   );
 }
+  const resolveRedirectTarget = (value: string) => {
+    if (!value) return value;
+    if (/^[a-z]+:\/\//i.test(value)) return value;
+    if (value.startsWith("/oauth")) return value;
+    if (value.startsWith("/")) return `/oauth${value}`;
+    return `/oauth/${value}`;
+  };

@@ -12,6 +12,8 @@ import SecurityPage from '@/pages/SecurityPage'
 import SessionsPage from '@/pages/SessionsPage'
 import MyPage from '@/pages/MyPage'
 import SwitchAccountPage from '@/pages/SwitchAccountPage'
+import Oa2AuthorizePage from '@/pages/Oa2AuthorizePage'
+import Oa2AppsPage from '@/pages/Oa2AppsPage'
 import { Navigate } from 'react-router-dom'
 
 export const router = createBrowserRouter([
@@ -52,6 +54,10 @@ export const router = createBrowserRouter([
     element: <SwitchAccountPage />,
   },
   {
+    path: '/gade/oa2',
+    element: <Oa2AuthorizePage />,
+  },
+  {
     path: '/switch-account',
     element: <Navigate to="/swich-accoutn" replace />,
   },
@@ -62,6 +68,14 @@ export const router = createBrowserRouter([
   {
     path: '/security/sessions',
     element: <SessionsPage />,
+  },
+  {
+    path: '/my/dev/apps/oa2',
+    element: <Oa2AppsPage />,
+  },
+  {
+    path: '/my/dev/apps/oa2/:slug',
+    element: <Oa2AppsPage />,
   },
   {
     path: '/my/securety',

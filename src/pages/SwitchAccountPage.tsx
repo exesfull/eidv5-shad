@@ -17,6 +17,25 @@ const SWITCH_ACCOUNT_ENDPOINT = eidAuthEndpoint("switchAccount");
 const AFTER_LOGIN_REDIRECT_KEY = "eidAfterLoginRedirect";
 const AUTH_RETURN_TO_KEY = "eidAuthReturnTo";
 
+const normalizeNavigatePath = (value: string) => {
+  if (!value) return "/my";
+  if (/^[a-z]+:\/\//i.test(value)) return value;
+
+  try {
+    const url = new URL(value, window.location.origin);
+    const fullPath = `${url.pathname}${url.search}${url.hash}`;
+    if (fullPath.startsWith("/oauth")) {
+      return fullPath.slice("/oauth".length) || "/";
+    }
+    return fullPath || "/";
+  } catch {
+    if (value.startsWith("/oauth")) {
+      return value.slice("/oauth".length) || "/";
+    }
+    return value;
+  }
+};
+
 type Account = {
   token_id: number;
   user_id: number;
@@ -88,7 +107,7 @@ export default function SwitchAccountPage() {
 
       setAccounts((res.data.accounts || []) as Account[]);
       if (returnTo !== "/swich-accoutn") {
-        navigate(returnTo, { replace: true });
+        navigate(normalizeNavigatePath(returnTo), { replace: true });
       }
     } catch {
       await loadAccounts();
@@ -100,7 +119,8 @@ export default function SwitchAccountPage() {
   const handleAddAccount = () => {
     sessionStorage.setItem(AFTER_LOGIN_REDIRECT_KEY, "/swich-accoutn");
     setAddingAccount(true);
-    navigate("/?return_to=/swich-accoutn");
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    navigate(`/?return_to=${encodeURIComponent(currentPath)}`);
   };
 
   const primaryTokenId = accounts.find((account) => account.is_default)?.token_id;
